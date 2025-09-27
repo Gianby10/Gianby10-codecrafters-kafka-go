@@ -4,17 +4,24 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
 
 type KafkaResponseMessage struct {
-	Header Header
-	Body   Body
+	MessageSize int32
+	Header      Header
+	Body        Body
 }
 
+// Request Header V2
 type Header struct {
-	CorrelationId int32
+	RequestApiKey     int16
+	RequestApiVersion int16
+	CorrelationId     int32
+	ClientId          *string
+	TAG_BUFFER        []byte
 }
 type Body struct {
 }
@@ -31,13 +38,79 @@ func (krm *KafkaResponseMessage) Serialize() []byte {
 	return b
 }
 
-func NewKafkaResponseMessage() KafkaResponseMessage {
+func NewKafkaResponseMessage(correlationId int32) KafkaResponseMessage {
 	return KafkaResponseMessage{
 
 		Header: Header{
-			CorrelationId: 7,
+			CorrelationId: correlationId,
 		},
 	}
+}
+
+func Read(r io.Reader) (*KafkaResponseMessage, error) {
+	sizeBuf := make([]byte, 4)
+	_, err := io.ReadFull(r, sizeBuf)
+	if err != nil {
+		return nil, err
+	}
+	messageSize := int32(binary.BigEndian.Uint32(sizeBuf))
+
+	reqApiKeyBuf := make([]byte, 2)
+	_, err = io.ReadFull(r, reqApiKeyBuf)
+	if err != nil {
+		return nil, err
+	}
+	reqApiKey := int16(binary.BigEndian.Uint16(reqApiKeyBuf))
+
+	reqApiVersionBuf := make([]byte, 2)
+	_, err = io.ReadFull(r, reqApiVersionBuf)
+	if err != nil {
+		return nil, err
+	}
+	reqApiVersion := int16(binary.BigEndian.Uint16(reqApiVersionBuf))
+
+	correlationIdBuf := make([]byte, 4)
+	_, err = io.ReadFull(r, reqApiVersionBuf)
+	if err != nil {
+		return nil, err
+	}
+	correlationId := int32(binary.BigEndian.Uint32(correlationIdBuf))
+
+	// Ora leggo la client_id, che è una NULLABLE_STRING, leggo prima size(INT16) bytes (dimensione stringa)
+
+	clientIdLenBuf := make([]byte, 2) // INT16
+	_, err = io.ReadFull(r, clientIdLenBuf)
+	if err != nil {
+		return nil, err
+	}
+	clientIdLen := int16(binary.BigEndian.Uint16(clientIdLenBuf))
+	var clientId *string
+	switch clientIdLen {
+	case -1:
+		clientId = nil
+	case 0:
+		empty := ""
+		clientId = &empty
+	default:
+		clientIdBuf := make([]byte, clientIdLen) // INT16
+		_, err = io.ReadFull(r, clientIdBuf)
+		if err != nil {
+			return nil, err
+		}
+		s := string(clientIdBuf)
+		clientId = &s
+	}
+
+	return &KafkaResponseMessage{
+		MessageSize: messageSize,
+		Header: Header{
+			RequestApiKey:     reqApiKey,
+			RequestApiVersion: reqApiVersion,
+			CorrelationId:     correlationId,
+			ClientId:          clientId,
+		},
+	}, nil
+
 }
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -60,9 +133,17 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
-	krm := NewKafkaResponseMessage()
-	conn.Read(make([]byte, 500))
-	_, err = conn.Write(krm.Serialize())
+	KReqHeader, err := Read(conn)
+	if err != nil {
+		fmt.Println("Error reading kafka request header v2 message: ", err.Error())
+		os.Exit(1)
+	}
+
+	// KReqHeader.Header.CorrelationId
+
+	kResponse := NewKafkaResponseMessage(KReqHeader.Header.CorrelationId)
+
+	_, err = conn.Write(kResponse.Serialize())
 	if err != nil {
 		fmt.Println("Error sending kafka response message: ", err.Error())
 		os.Exit(1)
