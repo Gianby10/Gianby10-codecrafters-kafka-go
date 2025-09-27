@@ -26,16 +26,51 @@ type Header struct {
 type Body struct {
 }
 
-func (krm *KafkaResponseMessage) Serialize() []byte {
+func (krm *KafkaResponseMessage) Serialize() ([]byte, error) {
 	var buf bytes.Buffer
 
-	binary.Write(&buf, binary.BigEndian, int32(0))
-	binary.Write(&buf, binary.BigEndian, krm.Header.CorrelationId)
+	// Temporaneamente mettiamo 0 come size e poi la calcoliamo e sostituiamo
+	// message_size
+	if err := binary.Write(&buf, binary.BigEndian, int32(0)); err != nil {
+		return nil, err
+	}
+
+	// ApiKey
+	if err := binary.Write(&buf, binary.BigEndian, int16(krm.Header.RequestApiKey)); err != nil {
+		return nil, err
+	}
+
+	// ApiVersion
+	if err := binary.Write(&buf, binary.BigEndian, int16(krm.Header.RequestApiVersion)); err != nil {
+		return nil, err
+	}
+
+	// CorrelationId
+	if err := binary.Write(&buf, binary.BigEndian, int32(krm.Header.CorrelationId)); err != nil {
+		return nil, err
+	}
+
+	// Client Id (STRING = INT16 length + UTF8 bytes, -1 if null)
+	if krm.Header.ClientId == nil {
+		if err := binary.Write(&buf, binary.BigEndian, int16(-1)); err != nil {
+			return nil, err
+		}
+	} else {
+		// Invio prima la dimensione del client Id
+		cId := []byte(*krm.Header.ClientId)
+		if err := binary.Write(&buf, binary.BigEndian, int16(len(cId))); err != nil {
+			return nil, err
+		}
+		if _, err := buf.Write(cId); err != nil {
+			return nil, err
+		}
+	}
 
 	b := buf.Bytes()
-	size := int32(len(b)) - 4
-	binary.BigEndian.PutUint32(b[0:4], uint32(size))
-	return b
+	size := int32(len(b) - 4)                        // lunghezza - i 4 byte iniziali
+	binary.BigEndian.PutUint32(b[0:4], uint32(size)) // Sovrascrivo grandezza
+	return b, nil
+
 }
 
 func NewKafkaResponseMessage(correlationId int32) KafkaResponseMessage {
@@ -142,7 +177,13 @@ func main() {
 
 	kResponse := NewKafkaResponseMessage(kReqHeader.Header.CorrelationId)
 
-	_, err = conn.Write(kResponse.Serialize())
+	responseBytes, err := kResponse.Serialize()
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	_, err = conn.Write(responseBytes)
 	if err != nil {
 		fmt.Println("Error sending kafka response message: ", err.Error())
 		os.Exit(1)
