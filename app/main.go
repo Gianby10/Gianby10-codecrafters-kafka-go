@@ -133,15 +133,17 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
-	KReqHeader, err := Read(conn)
+	kReqHeader, err := Read(conn)
 	if err != nil {
 		fmt.Println("Error reading kafka request header v2 message: ", err.Error())
 		os.Exit(1)
 	}
 
+	fmt.Printf("%+v", kReqHeader)
+
 	// KReqHeader.Header.CorrelationId
 
-	kResponse := NewKafkaResponseMessage(KReqHeader.Header.CorrelationId)
+	kResponse := NewKafkaResponseMessage(kReqHeader.Header.CorrelationId)
 
 	_, err = conn.Write(kResponse.Serialize())
 	if err != nil {
