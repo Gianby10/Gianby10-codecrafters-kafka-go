@@ -1,10 +1,41 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
 )
+
+type KafkaResponseMessage struct {
+	message_size int32
+	Header       Header
+	Body         Body
+}
+
+type Header struct {
+	correlation_id int32
+}
+type Body struct {
+}
+
+func (krm *KafkaResponseMessage) Serialize() []byte {
+	var buf bytes.Buffer
+
+	binary.Write(&buf, binary.BigEndian, krm.message_size)
+	binary.Write(&buf, binary.BigEndian, krm.Header.correlation_id)
+	return buf.Bytes()
+}
+
+func NewKafkaResponseMessage() *KafkaResponseMessage {
+	return &KafkaResponseMessage{
+		message_size: 0,
+		Header: Header{
+			correlation_id: 7,
+		},
+	}
+}
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
 var _ = net.Listen
@@ -21,9 +52,16 @@ func main() {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
 	}
-	_, err = l.Accept()
+	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
+	krm := NewKafkaResponseMessage()
+	_, err = conn.Write(krm.Serialize())
+	if err != nil {
+		fmt.Println("Error sending kafka response message: ", err.Error())
+		os.Exit(1)
+	}
+
 }
