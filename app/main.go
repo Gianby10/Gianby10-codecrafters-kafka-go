@@ -52,6 +52,7 @@ func Read(r io.Reader) (*KafkaResponseMessage, error) {
 	if err := binary.Read(r, binary.BigEndian, &messageSize); err != nil {
 		return nil, err
 	}
+	fmt.Printf("MessageSize read: %x", messageSize)
 
 	reqApiKeyBuf := make([]byte, 2)
 	_, err := io.ReadFull(r, reqApiKeyBuf)
