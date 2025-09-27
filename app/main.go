@@ -48,15 +48,13 @@ func NewKafkaResponseMessage(correlationId int32) KafkaResponseMessage {
 }
 
 func Read(r io.Reader) (*KafkaResponseMessage, error) {
-	sizeBuf := make([]byte, 4)
-	_, err := io.ReadFull(r, sizeBuf)
-	if err != nil {
+	var messageSize int32
+	if err := binary.Read(r, binary.BigEndian, &messageSize); err != nil {
 		return nil, err
 	}
-	messageSize := int32(binary.BigEndian.Uint32(sizeBuf))
 
 	reqApiKeyBuf := make([]byte, 2)
-	_, err = io.ReadFull(r, reqApiKeyBuf)
+	_, err := io.ReadFull(r, reqApiKeyBuf)
 	if err != nil {
 		return nil, err
 	}
