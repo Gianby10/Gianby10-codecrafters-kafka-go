@@ -9,13 +9,12 @@ import (
 )
 
 type KafkaResponseMessage struct {
-	message_size int32
-	Header       Header
-	Body         Body
+	Header Header
+	Body   Body
 }
 
 type Header struct {
-	correlation_id int32
+	CorrelationId int32
 }
 type Body struct {
 }
@@ -23,16 +22,20 @@ type Body struct {
 func (krm *KafkaResponseMessage) Serialize() []byte {
 	var buf bytes.Buffer
 
-	binary.Write(&buf, binary.BigEndian, krm.message_size)
-	binary.Write(&buf, binary.BigEndian, krm.Header.correlation_id)
-	return buf.Bytes()
+	binary.Write(&buf, binary.BigEndian, int32(0))
+	binary.Write(&buf, binary.BigEndian, krm.Header.CorrelationId)
+
+	b := buf.Bytes()
+	size := int32(len(b)) - 4
+	binary.BigEndian.PutUint32(b[0:4], uint32(size))
+	return b
 }
 
-func NewKafkaResponseMessage() *KafkaResponseMessage {
-	return &KafkaResponseMessage{
-		message_size: 0,
+func NewKafkaResponseMessage() KafkaResponseMessage {
+	return KafkaResponseMessage{
+
 		Header: Header{
-			correlation_id: 7,
+			CorrelationId: 7,
 		},
 	}
 }
