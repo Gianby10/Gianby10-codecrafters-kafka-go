@@ -67,12 +67,10 @@ func Read(r io.Reader) (*KafkaResponseMessage, error) {
 	}
 	reqApiVersion := int16(binary.BigEndian.Uint16(reqApiVersionBuf))
 
-	correlationIdBuf := make([]byte, 4)
-	_, err = io.ReadFull(r, correlationIdBuf)
-	if err != nil {
+	var correlationId int32
+	if err := binary.Read(r, binary.BigEndian, &correlationId); err != nil {
 		return nil, err
 	}
-	correlationId := int32(binary.BigEndian.Uint32(correlationIdBuf))
 
 	// Ora leggo la client_id, che è una NULLABLE_STRING, leggo prima size(INT16) bytes (dimensione stringa)
 
