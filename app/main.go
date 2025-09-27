@@ -97,7 +97,7 @@ func Read(r io.Reader) (*KafkaResponseMessage, error) {
 		s := string(clientIdBuf)
 		clientId = &s
 	}
-
+	// t
 	return &KafkaResponseMessage{
 		MessageSize: messageSize,
 		Header: Header{
