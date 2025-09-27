@@ -61,6 +61,7 @@ func main() {
 		os.Exit(1)
 	}
 	krm := NewKafkaResponseMessage()
+	conn.Read(make([]byte, 0))
 	_, err = conn.Write(krm.Serialize())
 	if err != nil {
 		fmt.Println("Error sending kafka response message: ", err.Error())
