@@ -70,7 +70,7 @@ func Read(r io.Reader) (*KafkaResponseMessage, error) {
 	reqApiVersion := int16(binary.BigEndian.Uint16(reqApiVersionBuf))
 
 	correlationIdBuf := make([]byte, 4)
-	_, err = io.ReadFull(r, reqApiVersionBuf)
+	_, err = io.ReadFull(r, correlationIdBuf)
 	if err != nil {
 		return nil, err
 	}
