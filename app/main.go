@@ -152,6 +152,7 @@ func (km *KafkaMessage) Deserialize(r io.Reader, header Header) error {
 	if err := header.Deserialize(r); err != nil {
 		return err
 	}
+	km.Header = header
 
 	return nil
 }
