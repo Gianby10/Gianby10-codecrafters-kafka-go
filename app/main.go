@@ -204,7 +204,7 @@ func main() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-
+	conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
 	_, err = conn.Write(responseBytes)
 	if err != nil {
 		fmt.Println("Error sending kafka response message: ", err.Error())
