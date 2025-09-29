@@ -11,12 +11,22 @@ import (
 
 type KafkaResponseMessage struct {
 	MessageSize int32
-	Header      Header
+	Header      ResponseHeaderV0
 	Body        Body
 }
 
+type KafkaRequestMessage struct {
+	MessageSize int32
+	Header      RequestHeaderV2
+	Body        Body
+}
+
+type ResponseHeaderV0 struct {
+	CorrelationId int32
+}
+
 // Request Header V2
-type Header struct {
+type RequestHeaderV2 struct {
 	RequestApiKey     int16
 	RequestApiVersion int16
 	CorrelationId     int32
@@ -27,6 +37,27 @@ type Body struct {
 }
 
 func (krm *KafkaResponseMessage) Serialize() ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Temporaneamente mettiamo 0 come size e poi la calcoliamo e sostituiamo
+	// message_size
+	if err := binary.Write(&buf, binary.BigEndian, int32(0)); err != nil {
+		return nil, err
+	}
+
+	// CorrelationId
+	if err := binary.Write(&buf, binary.BigEndian, int32(krm.Header.CorrelationId)); err != nil {
+		return nil, err
+	}
+
+	b := buf.Bytes()
+	size := int32(len(b) - 4)                        // lunghezza - i 4 byte iniziali
+	binary.BigEndian.PutUint32(b[0:4], uint32(size)) // Sovrascrivo grandezza
+	return b, nil
+
+}
+
+func (krm *KafkaRequestMessage) Serialize() ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Temporaneamente mettiamo 0 come size e poi la calcoliamo e sostituiamo
@@ -76,13 +107,13 @@ func (krm *KafkaResponseMessage) Serialize() ([]byte, error) {
 func NewKafkaResponseMessage(correlationId int32) KafkaResponseMessage {
 	return KafkaResponseMessage{
 
-		Header: Header{
+		Header: ResponseHeaderV0{
 			CorrelationId: correlationId,
 		},
 	}
 }
 
-func Read(r io.Reader) (*KafkaResponseMessage, error) {
+func Read(r io.Reader) (*KafkaRequestMessage, error) {
 	var messageSize int32
 	if err := binary.Read(r, binary.BigEndian, &messageSize); err != nil {
 		return nil, err
@@ -133,9 +164,9 @@ func Read(r io.Reader) (*KafkaResponseMessage, error) {
 		clientId = &s
 	}
 	// t
-	return &KafkaResponseMessage{
+	return &KafkaRequestMessage{
 		MessageSize: messageSize,
-		Header: Header{
+		Header: RequestHeaderV2{
 			RequestApiKey:     reqApiKey,
 			RequestApiVersion: reqApiVersion,
 			CorrelationId:     correlationId,
@@ -145,16 +176,10 @@ func Read(r io.Reader) (*KafkaResponseMessage, error) {
 
 }
 
-// Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
-
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
+
 	fmt.Println("Logs from your program will appear here!")
 
-	// Uncomment this block to pass the first stage
-	//
 	l, err := net.Listen("tcp", "0.0.0.0:9092")
 	if err != nil {
 		fmt.Println("Failed to bind to port 9092")
@@ -165,17 +190,13 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
-	kReqHeader, err := Read(conn)
+	kReqMsg, err := Read(conn)
 	if err != nil {
 		fmt.Println("Error reading kafka request header v2 message: ", err.Error())
 		os.Exit(1)
 	}
 
-	fmt.Printf("%+v", kReqHeader)
-
-	// KReqHeader.Header.CorrelationId
-
-	kResponse := NewKafkaResponseMessage(kReqHeader.Header.CorrelationId)
+	kResponse := NewKafkaResponseMessage(kReqMsg.Header.CorrelationId)
 
 	responseBytes, err := kResponse.Serialize()
 	if err != nil {
