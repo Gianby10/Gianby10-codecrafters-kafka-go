@@ -138,6 +138,10 @@ func (km *KafkaMessage) Serialize() ([]byte, error) {
 
 	// Serialize body
 
+	if err := km.Body.Serialize(&buf); err != nil {
+		return nil, err
+	}
+
 	b := buf.Bytes()
 	messageSize := int32(len(b) - 4) // Escludo i primi 4 byte temporanei di message size
 	binary.BigEndian.PutUint32(b[0:4], uint32(messageSize))
