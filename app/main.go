@@ -5,174 +5,186 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 )
 
-type KafkaResponseMessage struct {
+type KafkaMessage struct {
 	MessageSize int32
-	Header      ResponseHeaderV0
+	Header      Header
 	Body        Body
 }
 
-type KafkaRequestMessage struct {
-	MessageSize int32
-	Header      RequestHeaderV2
-	Body        Body
+type Header interface {
+	Serialize(io.Writer) error
+	Deserialize(io.Reader) error
+}
+
+type Body interface {
+	Serialize(io.Writer) error
+	Deserialize(io.Reader) error
 }
 
 type ResponseHeaderV0 struct {
 	CorrelationId int32
 }
 
-// Request Header V2
 type RequestHeaderV2 struct {
-	RequestApiKey     int16
-	RequestApiVersion int16
-	CorrelationId     int32
-	ClientId          *string
-	TAG_BUFFER        []byte
-}
-type Body struct {
+	ApiKey        int16
+	ApiVersion    int16
+	CorrelationId int32
+	ClientId      *string
+	TAG_BUFFER    []byte
 }
 
-func (krm *KafkaResponseMessage) Serialize() ([]byte, error) {
-	var buf bytes.Buffer
-
-	// Temporaneamente mettiamo 0 come size e poi la calcoliamo e sostituiamo
-	// message_size
-	if err := binary.Write(&buf, binary.BigEndian, int32(0)); err != nil {
-		return nil, err
-	}
-
-	// CorrelationId
-	if err := binary.Write(&buf, binary.BigEndian, int32(krm.Header.CorrelationId)); err != nil {
-		return nil, err
-	}
-
-	b := buf.Bytes()
-	size := int32(len(b) - 4)                        // lunghezza - i 4 byte iniziali
-	binary.BigEndian.PutUint32(b[0:4], uint32(size)) // Sovrascrivo grandezza
-	return b, nil
-
+type ApiVersionsResponseV4 struct {
+	ErrorCode int16
 }
 
-func (krm *KafkaRequestMessage) Serialize() ([]byte, error) {
-	var buf bytes.Buffer
-
-	// Temporaneamente mettiamo 0 come size e poi la calcoliamo e sostituiamo
-	// message_size
-	if err := binary.Write(&buf, binary.BigEndian, int32(0)); err != nil {
-		return nil, err
-	}
-
-	// ApiKey
-	if err := binary.Write(&buf, binary.BigEndian, int16(krm.Header.RequestApiKey)); err != nil {
-		return nil, err
-	}
-
-	// ApiVersion
-	if err := binary.Write(&buf, binary.BigEndian, int16(krm.Header.RequestApiVersion)); err != nil {
-		return nil, err
-	}
-
-	// CorrelationId
-	if err := binary.Write(&buf, binary.BigEndian, int32(krm.Header.CorrelationId)); err != nil {
-		return nil, err
-	}
-
-	// Client Id (STRING = INT16 length + UTF8 bytes, -1 if null)
-	if krm.Header.ClientId == nil {
-		if err := binary.Write(&buf, binary.BigEndian, int16(-1)); err != nil {
-			return nil, err
-		}
-	} else {
-		// Invio prima la dimensione del client Id
-		cId := []byte(*krm.Header.ClientId)
-		if err := binary.Write(&buf, binary.BigEndian, int16(len(cId))); err != nil {
-			return nil, err
-		}
-		if _, err := buf.Write(cId); err != nil {
-			return nil, err
-		}
-	}
-
-	b := buf.Bytes()
-	size := int32(len(b) - 4)                        // lunghezza - i 4 byte iniziali
-	binary.BigEndian.PutUint32(b[0:4], uint32(size)) // Sovrascrivo grandezza
-	return b, nil
-
+func (rh *ResponseHeaderV0) Serialize(w io.Writer) error {
+	return binary.Write(w, binary.BigEndian, rh.CorrelationId)
 }
 
-func NewKafkaResponseMessage(correlationId int32) KafkaResponseMessage {
-	return KafkaResponseMessage{
-		MessageSize: 0,
-		Header: ResponseHeaderV0{
-			CorrelationId: correlationId,
-		},
-	}
+func (rh *ResponseHeaderV0) Deserialize(r io.Reader) error {
+	return binary.Read(r, binary.BigEndian, &rh.CorrelationId)
 }
 
-func Read(r io.Reader) (*KafkaRequestMessage, error) {
-	var messageSize int32
-	if err := binary.Read(r, binary.BigEndian, &messageSize); err != nil {
-		return nil, err
-	}
-	fmt.Printf("MessageSize read: %x", messageSize)
-
-	reqApiKeyBuf := make([]byte, 2)
-	_, err := io.ReadFull(r, reqApiKeyBuf)
-	if err != nil {
-		return nil, err
-	}
-	reqApiKey := int16(binary.BigEndian.Uint16(reqApiKeyBuf))
-
-	reqApiVersionBuf := make([]byte, 2)
-	_, err = io.ReadFull(r, reqApiVersionBuf)
-	if err != nil {
-		return nil, err
-	}
-	reqApiVersion := int16(binary.BigEndian.Uint16(reqApiVersionBuf))
-
-	var correlationId int32
-	if err := binary.Read(r, binary.BigEndian, &correlationId); err != nil {
-		return nil, err
+func (rh *RequestHeaderV2) Deserialize(r io.Reader) error {
+	if err := binary.Read(r, binary.BigEndian, &rh.ApiKey); err != nil {
+		return err
 	}
 
-	// Ora leggo la client_id, che è una NULLABLE_STRING, leggo prima size(INT16) bytes (dimensione stringa)
-
-	clientIdLenBuf := make([]byte, 2) // INT16
-	_, err = io.ReadFull(r, clientIdLenBuf)
-	if err != nil {
-		return nil, err
+	if err := binary.Read(r, binary.BigEndian, &rh.ApiVersion); err != nil {
+		return err
 	}
-	clientIdLen := int16(binary.BigEndian.Uint16(clientIdLenBuf))
-	var clientId *string
+
+	if err := binary.Read(r, binary.BigEndian, &rh.CorrelationId); err != nil {
+		return err
+	}
+
+	var clientIdLen int16
+	if err := binary.Read(r, binary.BigEndian, &clientIdLen); err != nil {
+		return err
+	}
+
 	switch clientIdLen {
 	case -1:
-		clientId = nil
+		rh.ClientId = nil
 	case 0:
 		empty := ""
-		clientId = &empty
+		rh.ClientId = &empty
 	default:
-		clientIdBuf := make([]byte, clientIdLen) // INT16
-		_, err = io.ReadFull(r, clientIdBuf)
-		if err != nil {
-			return nil, err
+		clientIdBuf := make([]byte, clientIdLen)
+		if _, err := io.ReadFull(r, clientIdBuf); err != nil {
+			return err
 		}
 		s := string(clientIdBuf)
-		clientId = &s
+		rh.ClientId = &s
 	}
-	// t
-	return &KafkaRequestMessage{
-		MessageSize: messageSize,
-		Header: RequestHeaderV2{
-			RequestApiKey:     reqApiKey,
-			RequestApiVersion: reqApiVersion,
-			CorrelationId:     correlationId,
-			ClientId:          clientId,
-		},
-	}, nil
+
+	return nil
+}
+
+func (rh *RequestHeaderV2) Serialize(w io.Writer) error {
+	if err := binary.Write(w, binary.BigEndian, rh.ApiKey); err != nil {
+		return err
+	}
+
+	if err := binary.Write(w, binary.BigEndian, rh.ApiVersion); err != nil {
+		return err
+	}
+
+	if err := binary.Write(w, binary.BigEndian, rh.CorrelationId); err != nil {
+		return err
+	}
+
+	if rh.ClientId == nil {
+		if err := binary.Write(w, binary.BigEndian, int16(-1)); err != nil {
+			return err
+		}
+	}
+
+	if rh.ClientId != nil {
+		if err := binary.Write(w, binary.BigEndian, int16(len(*rh.ClientId))); err != nil {
+			return err
+		}
+
+		if _, err := w.Write([]byte(*rh.ClientId)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
+	return binary.Write(w, binary.BigEndian, api.ErrorCode)
+}
+
+func (api *ApiVersionsResponseV4) Deserialize(r io.Reader) error {
+	return binary.Read(r, binary.BigEndian, &api.ErrorCode)
+}
+
+func (km *KafkaMessage) Serialize() ([]byte, error) {
+	var buf bytes.Buffer
+	// Message size placeholder
+	if err := binary.Write(&buf, binary.BigEndian, int32(0)); err != nil {
+		return nil, err
+	}
+
+	if err := km.Header.Serialize(&buf); err != nil {
+		return nil, err
+	}
+
+	// Serialize body
+
+	b := buf.Bytes()
+	messageSize := int32(len(b) - 4) // Escludo i primi 4 byte temporanei di message size
+	binary.BigEndian.PutUint32(b[0:4], uint32(messageSize))
+	return b, nil
+}
+
+func (km *KafkaMessage) Deserialize(r io.Reader, header Header) error {
+	if err := binary.Read(r, binary.BigEndian, &km.MessageSize); err != nil {
+		return err
+	}
+
+	if err := header.Deserialize(r); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	reqMsg := &KafkaMessage{}
+	err := reqMsg.Deserialize(conn, &RequestHeaderV2{})
+	if err != nil {
+		log.Printf("error deserializing kafka message: %s", err.Error())
+	}
+
+	log.Printf("Received message: %+v", reqMsg)
+
+	responseHeader := &ResponseHeaderV0{
+		CorrelationId: reqMsg.Header.(*RequestHeaderV2).CorrelationId,
+	}
+
+	responseMsg := &KafkaMessage{
+		Header: responseHeader,
+		Body:   &ApiVersionsResponseV4{ErrorCode: 35},
+	}
+
+	conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
+
+	responseBytes, err := responseMsg.Serialize()
+	if err != nil {
+		log.Printf("error serializing kafka response message: %s", err.Error())
+	}
+	conn.Write(responseBytes)
+	if err != nil {
+		log.Printf("error writing kafka response message: %s", err.Error())
+	}
 
 }
 
@@ -190,25 +202,7 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
-	kReqMsg, err := Read(conn)
-	if err != nil {
-		fmt.Println("Error reading kafka request header v2 message: ", err.Error())
-		os.Exit(1)
-	}
 
-	kResponse := NewKafkaResponseMessage(kReqMsg.Header.CorrelationId)
-
-	responseBytes, err := kResponse.Serialize()
-	fmt.Printf("Response bytes: %x\n", responseBytes)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
-	_, err = conn.Write(responseBytes)
-	if err != nil {
-		fmt.Println("Error sending kafka response message: ", err.Error())
-		os.Exit(1)
-	}
+	handleConnection(conn)
 
 }
