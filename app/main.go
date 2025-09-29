@@ -106,7 +106,7 @@ func (krm *KafkaRequestMessage) Serialize() ([]byte, error) {
 
 func NewKafkaResponseMessage(correlationId int32) KafkaResponseMessage {
 	return KafkaResponseMessage{
-
+		MessageSize: 0,
 		Header: ResponseHeaderV0{
 			CorrelationId: correlationId,
 		},
@@ -199,6 +199,7 @@ func main() {
 	kResponse := NewKafkaResponseMessage(kReqMsg.Header.CorrelationId)
 
 	responseBytes, err := kResponse.Serialize()
+	fmt.Printf("Response bytes: %x\n", responseBytes)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
