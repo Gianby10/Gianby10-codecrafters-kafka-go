@@ -313,7 +313,7 @@ func handleConnection(conn net.Conn) {
 		Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}},
 	}
 
-	conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
+	// conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
 
 	responseBytes, err := responseMsg.Serialize()
 	if err != nil {
