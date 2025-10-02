@@ -38,8 +38,24 @@ type RequestHeaderV2 struct {
 	TAG_BUFFER    []byte
 }
 
+type ApiVersion struct {
+	ApiKey     int16
+	MinVersion int16
+	MaxVersion int16
+	TAG_BUFFER []byte
+}
+
 type ApiVersionsResponseV4 struct {
-	ErrorCode int16
+	ErrorCode      int16
+	ApiKeys        []ApiVersion
+	ThrottleTimeMs int32
+	TAG_BUFFER     []byte
+}
+
+type ApiVersionsRequestV4 struct {
+	ClientId              *string // Client_software_name forse? COMPACT_STRING
+	ClientSoftwareVersion *string // COMPACT_STRING
+	TAG_BUFFER            []byte
 }
 
 func (rh *ResponseHeaderV0) Serialize(w io.Writer) error {
@@ -118,11 +134,123 @@ func (rh *RequestHeaderV2) Serialize(w io.Writer) error {
 }
 
 func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, api.ErrorCode)
+	if err := binary.Write(w, binary.BigEndian, api.ErrorCode); err != nil {
+		return err
+	}
+
+	// Scrivo e mando la lunghezza dell'array di ApiKeys come UVARINT
+	apiKeysArrayLen := len(api.ApiKeys)
+	apiKeysArrayLenBytes := make([]byte, binary.MaxVarintLen64)
+	bytesRead := binary.PutUvarint(apiKeysArrayLenBytes, uint64(apiKeysArrayLen))
+	if _, err := w.Write(apiKeysArrayLenBytes[:bytesRead]); err != nil {
+		return err
+	}
+
+	// Scrivo ora ogni ApiKey nell'array ApiKeys
+	for _, apiKey := range api.ApiKeys {
+		if err := binary.Write(w, binary.BigEndian, apiKey.ApiKey); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.BigEndian, apiKey.MinVersion); err != nil {
+			return err
+		}
+		if err := binary.Write(w, binary.BigEndian, apiKey.MaxVersion); err != nil {
+			return err
+		}
+		// TAG_BUFFER
+	}
+	if err := binary.Write(w, binary.BigEndian, int16(api.ThrottleTimeMs)); err != nil {
+		return err
+	}
+
+	// TAG_BUFFER
+
+	return nil
 }
 
 func (api *ApiVersionsResponseV4) Deserialize(r io.Reader) error {
 	return binary.Read(r, binary.BigEndian, &api.ErrorCode)
+}
+
+func (api *ApiVersionsRequestV4) Serialize(w io.Writer) error {
+
+	// ClientID è una COMPACT_STRING quindi prima la lunghezza come UVARINT e poi la stringa
+	// Una COMPACT_STRING può essere null, in quel caso la lunghezza è 0
+	// Può essere vuota, in quel caso la lunghezza è 1 (1 byte per il terminatore)
+	// Altrimenti la lunghezza è len(stringa)+1 (1 byte per il terminatore)
+	if api.ClientId == nil {
+		cIdLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(cIdLen, uint64(0))
+		if _, err := w.Write(cIdLen[:bytesRead]); err != nil {
+			return err
+		}
+	} else if *api.ClientId == "" {
+		cIdLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(cIdLen, uint64(1))
+		if _, err := w.Write(cIdLen[:bytesRead]); err != nil {
+			return err
+		}
+	} else {
+		cIdLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(cIdLen, uint64(len(*api.ClientId)+1))
+		if _, err := w.Write(cIdLen[:bytesRead]); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte(*api.ClientId)); err != nil {
+			return err
+		}
+	}
+
+	// ClientSoftwareVersion è una COMPACT_STRING quindi prima la lunghezza come UVARINT e poi la stringa
+	// Una COMPACT_STRING può essere null, in quel caso la lunghezza è 0
+	// Può essere vuota, in quel caso la lunghezza è 1 (1 byte per il terminatore)
+	// Altrimenti la lunghezza è len(stringa)+1 (1 byte per il terminatore)
+	if api.ClientSoftwareVersion == nil {
+		cSwVerLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(cSwVerLen, uint64(0))
+		if _, err := w.Write(cSwVerLen[:bytesRead]); err != nil {
+			return err
+		}
+	} else if *api.ClientSoftwareVersion == "" {
+		cSwVerLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(cSwVerLen, uint64(1))
+		if _, err := w.Write(cSwVerLen[:bytesRead]); err != nil {
+			return err
+		}
+	} else {
+		cSwVerLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(cSwVerLen, uint64(len(*api.ClientSoftwareVersion)+1))
+		if _, err := w.Write(cSwVerLen[:bytesRead]); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte(*api.ClientSoftwareVersion)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
+	// Per leggere un UVARINT ho bisogno di un io.ByteReader
+	// Se r non lo implementa, lo wrappo in un bufio.Reader che lo implementa
+	// (e che fa buffering, quindi è più efficiente)
+
+	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
+	clientId, err := readCompactString(r)
+	if err != nil {
+		return err
+	}
+	api.ClientId = clientId
+
+	// Leggo la lunghezza della COMPACT_STRING ClientSoftwareVersion come UVARINT con un byte reader
+	clientSwVer, err := readCompactString(r)
+	if err != nil {
+		return err
+	}
+	api.ClientSoftwareVersion = clientSwVer
+
+	return nil
 }
 
 func (km *KafkaMessage) Serialize() ([]byte, error) {
@@ -148,7 +276,7 @@ func (km *KafkaMessage) Serialize() ([]byte, error) {
 	return b, nil
 }
 
-func (km *KafkaMessage) Deserialize(r io.Reader, header Header) error {
+func (km *KafkaMessage) Deserialize(r io.Reader, header Header, body Body) error {
 	if err := binary.Read(r, binary.BigEndian, &km.MessageSize); err != nil {
 		return err
 	}
@@ -158,13 +286,18 @@ func (km *KafkaMessage) Deserialize(r io.Reader, header Header) error {
 	}
 	km.Header = header
 
+	if err := body.Deserialize(r); err != nil {
+		return err
+	}
+	km.Body = body
+
 	return nil
 }
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	reqMsg := &KafkaMessage{}
-	err := reqMsg.Deserialize(conn, &RequestHeaderV2{})
+	err := reqMsg.Deserialize(conn, &RequestHeaderV2{}, &ApiVersionsRequestV4{})
 	if err != nil {
 		log.Printf("error deserializing kafka message: %s", err.Error())
 	}
@@ -177,7 +310,7 @@ func handleConnection(conn net.Conn) {
 
 	responseMsg := &KafkaMessage{
 		Header: responseHeader,
-		Body:   &ApiVersionsResponseV4{ErrorCode: 35},
+		Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}},
 	}
 
 	conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
