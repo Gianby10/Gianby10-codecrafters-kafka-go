@@ -342,8 +342,8 @@ func handleConnection(conn net.Conn) {
 
 	var responseMsg *KafkaMessage
 
-	if reqMsg.Header.(*RequestHeaderV2).ApiKey != 18 {
-		log.Printf("Unsupported ApiKey: %d", reqMsg.Header.(*RequestHeaderV2).ApiKey)
+	if reqMsg.Header.(*RequestHeaderV2).ApiVersion > 4 {
+		log.Printf("Unsupported ApiVersion: %d", reqMsg.Header.(*RequestHeaderV2).ApiKey)
 		responseMsg = &KafkaMessage{
 			Header: responseHeader,
 			Body:   &ApiVersionsResponseV4{ErrorCode: 35, ThrottleTimeMs: 0},
