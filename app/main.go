@@ -175,7 +175,7 @@ func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
 			return err
 		}
 	}
-	if err := binary.Write(w, binary.BigEndian, int16(api.ThrottleTimeMs)); err != nil {
+	if err := binary.Write(w, binary.BigEndian, int32(api.ThrottleTimeMs)); err != nil {
 		return err
 	}
 
