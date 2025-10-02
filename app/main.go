@@ -99,6 +99,12 @@ func (rh *RequestHeaderV2) Deserialize(r io.Reader) error {
 		rh.ClientId = &s
 	}
 
+	// Leggo un byte di TAG_BUFFER
+	var tagBuffer byte
+	if err := binary.Read(r, binary.BigEndian, &tagBuffer); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -130,6 +136,11 @@ func (rh *RequestHeaderV2) Serialize(w io.Writer) error {
 			return err
 		}
 	}
+
+	// Scrivi un byte di TAG_BUFFER
+	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -158,17 +169,24 @@ func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
 			return err
 		}
 		// TAG_BUFFER
+		if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
+			return err
+		}
 	}
 	if err := binary.Write(w, binary.BigEndian, int16(api.ThrottleTimeMs)); err != nil {
 		return err
 	}
 
-	// TAG_BUFFER
+	/// TAG_BUFFER
+	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (api *ApiVersionsResponseV4) Deserialize(r io.Reader) error {
+	// TODO
 	return binary.Read(r, binary.BigEndian, &api.ErrorCode)
 }
 
@@ -228,6 +246,11 @@ func (api *ApiVersionsRequestV4) Serialize(w io.Writer) error {
 		}
 	}
 
+	// Scrivo un byte vuoto di TAG_BUFFER
+	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -250,6 +273,11 @@ func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
 	}
 	api.ClientSoftwareVersion = clientSwVer
 
+	// Leggo un byte di TAG_BUFFER
+	var tagBuffer byte
+	if err := binary.Read(r, binary.BigEndian, &tagBuffer); err != nil {
+		return err
+	}
 	return nil
 }
 
