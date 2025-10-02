@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -259,18 +260,17 @@ func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
 	// Se r non lo implementa, lo wrappo in un bufio.Reader che lo implementa
 	// (e che fa buffering, quindi è più efficiente)
 
-	buf := make([]byte, 64)
-	n, _ := r.Read(buf)
-	fmt.Printf("Raw bytes: %x\n", buf[:n])
+	br := bufio.NewReader(r)
+
 	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
-	clientId, err := readCompactString(r)
+	clientId, err := readCompactString(br)
 	if err != nil {
 		return err
 	}
 	api.ClientId = clientId
 
 	// Leggo la lunghezza della COMPACT_STRING ClientSoftwareVersion come UVARINT con un byte reader
-	clientSwVer, err := readCompactString(r)
+	clientSwVer, err := readCompactString(br)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
 
 	// Leggo un byte di TAG_BUFFER
 	var tagBuffer byte
-	if err := binary.Read(r, binary.BigEndian, &tagBuffer); err != nil {
+	if err := binary.Read(br, binary.BigEndian, &tagBuffer); err != nil {
 		return err
 	}
 	return nil
