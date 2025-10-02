@@ -343,7 +343,7 @@ func handleConnection(conn net.Conn) {
 
 	responseMsg := &KafkaMessage{
 		Header: responseHeader,
-		Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+		Body:   &ApiVersionsResponseV4{ErrorCode: 35, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
 	}
 
 	// conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (che non mi interessa)
