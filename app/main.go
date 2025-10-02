@@ -327,43 +327,45 @@ func (km *KafkaMessage) Deserialize(r io.Reader, header Header, body Body) error
 }
 
 func handleConnection(conn net.Conn) {
+
 	defer conn.Close()
-	reqMsg := &KafkaMessage{}
-	err := reqMsg.Deserialize(conn, &RequestHeaderV2{}, &ApiVersionsRequestV4{})
-	if err != nil {
-		log.Printf("error deserializing kafka message: %s", err.Error())
-	}
 
-	log.Printf("Received message: %+v", reqMsg)
-
-	responseHeader := &ResponseHeaderV0{
-		CorrelationId: reqMsg.Header.(*RequestHeaderV2).CorrelationId,
-	}
-
-	var responseMsg *KafkaMessage
-
-	if reqMsg.Header.(*RequestHeaderV2).ApiVersion > 4 {
-		log.Printf("Unsupported ApiVersion: %d", reqMsg.Header.(*RequestHeaderV2).ApiKey)
-		responseMsg = &KafkaMessage{
-			Header: responseHeader,
-			Body:   &ApiVersionsResponseV4{ErrorCode: 35, ThrottleTimeMs: 0},
+	for {
+		reqMsg := &KafkaMessage{}
+		err := reqMsg.Deserialize(conn, &RequestHeaderV2{}, &ApiVersionsRequestV4{})
+		if err != nil {
+			log.Printf("error deserializing kafka message: %s", err.Error())
 		}
-	} else {
-		responseMsg = &KafkaMessage{
-			Header: responseHeader,
-			Body:   &ApiVersionsResponseV4{ErrorCode: 000000, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+
+		log.Printf("Received message: %+v", reqMsg)
+
+		responseHeader := &ResponseHeaderV0{
+			CorrelationId: reqMsg.Header.(*RequestHeaderV2).CorrelationId,
 		}
-	}
 
-	// conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (sche non mi interessa)
+		var responseMsg *KafkaMessage
 
-	responseBytes, err := responseMsg.Serialize()
-	if err != nil {
-		log.Printf("error serializing kafka response message: %s", err.Error())
-	}
-	conn.Write(responseBytes)
-	if err != nil {
-		log.Printf("error writing kafka response message: %s", err.Error())
+		if reqMsg.Header.(*RequestHeaderV2).ApiVersion > 4 {
+			log.Printf("Unsupported ApiVersion: %d", reqMsg.Header.(*RequestHeaderV2).ApiKey)
+			responseMsg = &KafkaMessage{
+				Header: responseHeader,
+				Body:   &ApiVersionsResponseV4{ErrorCode: 35, ThrottleTimeMs: 0},
+			}
+		} else {
+			responseMsg = &KafkaMessage{
+				Header: responseHeader,
+				Body:   &ApiVersionsResponseV4{ErrorCode: 000000, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+			}
+		}
+
+		responseBytes, err := responseMsg.Serialize()
+		if err != nil {
+			log.Printf("error serializing kafka response message: %s", err.Error())
+		}
+		conn.Write(responseBytes)
+		if err != nil {
+			log.Printf("error writing kafka response message: %s", err.Error())
+		}
 	}
 
 }
