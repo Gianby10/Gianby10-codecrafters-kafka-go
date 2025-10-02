@@ -340,9 +340,19 @@ func handleConnection(conn net.Conn) {
 		CorrelationId: reqMsg.Header.(*RequestHeaderV2).CorrelationId,
 	}
 
-	responseMsg := &KafkaMessage{
-		Header: responseHeader,
-		Body:   &ApiVersionsResponseV4{ErrorCode: 000000, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+	var responseMsg *KafkaMessage
+
+	if reqMsg.Header.(*RequestHeaderV2).ApiKey != 18 {
+		log.Printf("Unsupported ApiKey: %d", reqMsg.Header.(*RequestHeaderV2).ApiKey)
+		responseMsg = &KafkaMessage{
+			Header: responseHeader,
+			Body:   &ApiVersionsResponseV4{ErrorCode: 35, ThrottleTimeMs: 0},
+		}
+	} else {
+		responseMsg = &KafkaMessage{
+			Header: responseHeader,
+			Body:   &ApiVersionsResponseV4{ErrorCode: 000000, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+		}
 	}
 
 	// conn.Read(make([]byte, 1024)) // Leggo il resto del messaggio (sche non mi interessa)
