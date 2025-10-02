@@ -151,7 +151,7 @@ func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
 	}
 
 	// Scrivo e mando la lunghezza dell'array di ApiKeys come UVARINT
-	apiKeysArrayLen := len(api.ApiKeys)
+	apiKeysArrayLen := len(api.ApiKeys) + 1
 	apiKeysArrayLenBytes := make([]byte, binary.MaxVarintLen64)
 	bytesRead := binary.PutUvarint(apiKeysArrayLenBytes, uint64(apiKeysArrayLen))
 	if _, err := w.Write(apiKeysArrayLenBytes[:bytesRead]); err != nil {
