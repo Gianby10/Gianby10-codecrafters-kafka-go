@@ -158,6 +158,7 @@ func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
 		return err
 	}
 
+	fmt.Printf("ApiKeys array len: %d", apiKeysArrayLenBytes[:bytesRead])
 	// Scrivo ora ogni ApiKey nell'array ApiKeys
 	for _, apiKey := range api.ApiKeys {
 		if err := binary.Write(w, binary.BigEndian, apiKey.ApiKey); err != nil {
