@@ -285,7 +285,7 @@ func (km *KafkaMessage) Deserialize(r io.Reader, header Header, body Body) error
 		return err
 	}
 	km.Header = header
-	log.Printf("Received header: %+v", header)
+
 	if err := body.Deserialize(r); err != nil {
 		return err
 	}
