@@ -32,6 +32,8 @@ func readCompactString(r io.Reader) (*string, error) {
 			return nil, err
 		}
 		s := string(clientIdBuf)
+		fmt.Printf("Read compact_string %s\n", s)
 		return &s, nil
+
 	}
 }
