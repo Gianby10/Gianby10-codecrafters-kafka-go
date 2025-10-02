@@ -3,12 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
-	"fmt"
 	"io"
 )
 
 func readCompactString(r io.Reader) (*string, error) {
-	fmt.Printf("reading COMPACT_STRING...\n")
 	br, ok := r.(io.ByteReader)
 	if !ok {
 		br = bufio.NewReader(r)
@@ -16,7 +14,6 @@ func readCompactString(r io.Reader) (*string, error) {
 
 	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
 	strLen, err := binary.ReadUvarint(br)
-	fmt.Printf("Reading compact_string with len = %d\n", strLen)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +30,6 @@ func readCompactString(r io.Reader) (*string, error) {
 			return nil, err
 		}
 		s := string(strBuf)
-		fmt.Printf("Read compact_string %s\n", s)
 		return &s, nil
 
 	}
