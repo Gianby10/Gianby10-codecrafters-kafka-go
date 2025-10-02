@@ -16,6 +16,7 @@ func readCompactString(r io.Reader) (*string, error) {
 
 	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
 	cIdLen, err := binary.ReadUvarint(br)
+	fmt.Printf("Reading compact_string with len = %d\n", cIdLen)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +27,7 @@ func readCompactString(r io.Reader) (*string, error) {
 		empty := ""
 		return &empty, nil
 	default:
-		fmt.Printf("Reading compact_string with len = %d\n", cIdLen)
+
 		clientIdBuf := make([]byte, cIdLen-1) // Tolgo 1 byte per il terminatore
 		if _, err := io.ReadFull(br.(io.Reader), clientIdBuf); err != nil {
 			return nil, err
