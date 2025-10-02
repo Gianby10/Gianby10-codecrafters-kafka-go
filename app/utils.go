@@ -13,7 +13,6 @@ func readCompactString(r io.Reader) (*string, error) {
 	if !ok {
 		br = bufio.NewReader(r)
 	}
-	fmt.Printf("ByteReader read")
 
 	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
 	cIdLen, err := binary.ReadUvarint(br)

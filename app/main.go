@@ -259,6 +259,9 @@ func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
 	// Se r non lo implementa, lo wrappo in un bufio.Reader che lo implementa
 	// (e che fa buffering, quindi è più efficiente)
 
+	buf := make([]byte, 64)
+	n, _ := r.Read(buf)
+	fmt.Printf("Raw bytes: %x\n", buf[:n])
 	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
 	clientId, err := readCompactString(r)
 	if err != nil {
