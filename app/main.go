@@ -354,7 +354,7 @@ func handleConnection(conn net.Conn) {
 		} else {
 			responseMsg = &KafkaMessage{
 				Header: responseHeader,
-				Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+				Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0},
 			}
 		}
 
