@@ -354,7 +354,7 @@ func handleConnection(conn net.Conn) {
 		} else {
 			responseMsg = &KafkaMessage{
 				Header: responseHeader,
-				Body:   &ApiVersionsResponseV4{ErrorCode: 000000, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
+				Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}}, ThrottleTimeMs: 0},
 			}
 		}
 
@@ -379,12 +379,14 @@ func main() {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
 	}
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
-	}
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
 
-	handleConnection(conn)
+		go handleConnection(conn)
+	}
 
 }
