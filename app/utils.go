@@ -34,3 +34,33 @@ func readCompactString(r io.Reader) (*string, error) {
 
 	}
 }
+
+func writeCompactString(w io.Writer, s *string) error {
+	// s è una COMPACT_STRING quindi prima la lunghezza come UVARINT e poi la stringa
+	// Una COMPACT_STRING può essere null, in quel caso la lunghezza è 0
+	// Può essere vuota, in quel caso la lunghezza è 1 (1 byte per il terminatore)
+	// Altrimenti la lunghezza è len(stringa)+1 (1 byte per il terminatore)
+	if s == nil {
+		strLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(strLen, uint64(0))
+		if _, err := w.Write(strLen[:bytesRead]); err != nil {
+			return err
+		}
+	} else if *s == "" {
+		strLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(strLen, uint64(1))
+		if _, err := w.Write(strLen[:bytesRead]); err != nil {
+			return err
+		}
+	} else {
+		strLen := make([]byte, binary.MaxVarintLen64)
+		bytesRead := binary.PutUvarint(strLen, uint64(len(*s)+1))
+		if _, err := w.Write(strLen[:bytesRead]); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte(*s)); err != nil {
+			return err
+		}
+	}
+	return nil
+}

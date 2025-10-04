@@ -194,59 +194,9 @@ func (api *ApiVersionsResponseV4) Deserialize(r io.Reader) error {
 
 func (api *ApiVersionsRequestV4) Serialize(w io.Writer) error {
 
-	// ClientID è una COMPACT_STRING quindi prima la lunghezza come UVARINT e poi la stringa
-	// Una COMPACT_STRING può essere null, in quel caso la lunghezza è 0
-	// Può essere vuota, in quel caso la lunghezza è 1 (1 byte per il terminatore)
-	// Altrimenti la lunghezza è len(stringa)+1 (1 byte per il terminatore)
-	if api.ClientId == nil {
-		cIdLen := make([]byte, binary.MaxVarintLen64)
-		bytesRead := binary.PutUvarint(cIdLen, uint64(0))
-		if _, err := w.Write(cIdLen[:bytesRead]); err != nil {
-			return err
-		}
-	} else if *api.ClientId == "" {
-		cIdLen := make([]byte, binary.MaxVarintLen64)
-		bytesRead := binary.PutUvarint(cIdLen, uint64(1))
-		if _, err := w.Write(cIdLen[:bytesRead]); err != nil {
-			return err
-		}
-	} else {
-		cIdLen := make([]byte, binary.MaxVarintLen64)
-		bytesRead := binary.PutUvarint(cIdLen, uint64(len(*api.ClientId)+1))
-		if _, err := w.Write(cIdLen[:bytesRead]); err != nil {
-			return err
-		}
-		if _, err := w.Write([]byte(*api.ClientId)); err != nil {
-			return err
-		}
-	}
+	writeCompactString(w, api.ClientId)
 
-	// ClientSoftwareVersion è una COMPACT_STRING quindi prima la lunghezza come UVARINT e poi la stringa
-	// Una COMPACT_STRING può essere null, in quel caso la lunghezza è 0
-	// Può essere vuota, in quel caso la lunghezza è 1 (1 byte per il terminatore)
-	// Altrimenti la lunghezza è len(stringa)+1 (1 byte per il terminatore)
-	if api.ClientSoftwareVersion == nil {
-		cSwVerLen := make([]byte, binary.MaxVarintLen64)
-		bytesRead := binary.PutUvarint(cSwVerLen, uint64(0))
-		if _, err := w.Write(cSwVerLen[:bytesRead]); err != nil {
-			return err
-		}
-	} else if *api.ClientSoftwareVersion == "" {
-		cSwVerLen := make([]byte, binary.MaxVarintLen64)
-		bytesRead := binary.PutUvarint(cSwVerLen, uint64(1))
-		if _, err := w.Write(cSwVerLen[:bytesRead]); err != nil {
-			return err
-		}
-	} else {
-		cSwVerLen := make([]byte, binary.MaxVarintLen64)
-		bytesRead := binary.PutUvarint(cSwVerLen, uint64(len(*api.ClientSoftwareVersion)+1))
-		if _, err := w.Write(cSwVerLen[:bytesRead]); err != nil {
-			return err
-		}
-		if _, err := w.Write([]byte(*api.ClientSoftwareVersion)); err != nil {
-			return err
-		}
-	}
+	writeCompactString(w, api.ClientSoftwareVersion)
 
 	// Scrivo un byte vuoto di TAG_BUFFER
 	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
@@ -326,7 +276,7 @@ func (km *KafkaMessage) Deserialize(r io.Reader, header Header, body Body) error
 	return nil
 }
 
-func ReadKafkaMessage(r io.Reader) (*KafkaMessage, error) {
+func ReadKafkaRequestMessage(r io.Reader) (*KafkaMessage, error) {
 	var msgSize int32
 	if err := binary.Read(r, binary.BigEndian, &msgSize); err != nil {
 		return nil, err
@@ -343,10 +293,7 @@ func ReadKafkaMessage(r io.Reader) (*KafkaMessage, error) {
 	case 18: // ApiVersion
 		body = &ApiVersionsRequestV4{}
 	case 75: // DescribeTopicsPartitions
-		// TODO
-		log.Printf("Received DescribeTopicsPartitions request, but not implemented yet.")
-		body = nil
-		return nil, nil
+		body = &DescribeTopicsPartitionsRequestV0{}
 	default:
 		return nil, fmt.Errorf("unsupported ApiKey: %d", header.ApiKey)
 	}
@@ -389,7 +336,7 @@ func handleConnection(conn net.Conn) {
 
 	for {
 
-		kafkaReqMsg, err := ReadKafkaMessage(conn)
+		kafkaReqMsg, err := ReadKafkaRequestMessage(conn)
 		if err != nil {
 			if err == io.EOF {
 				log.Print("Connection closed by client.")
