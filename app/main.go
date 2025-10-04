@@ -342,6 +342,11 @@ func ReadKafkaMessage(r io.Reader) (*KafkaMessage, error) {
 	switch header.ApiKey {
 	case 18: // ApiVersion
 		body = &ApiVersionsRequestV4{}
+	case 75: // DescribeTopicsPartitions
+		// TODO
+		log.Printf("Received DescribeTopicsPartitions request, but not implemented yet.")
+		body = nil
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unsupported ApiKey: %d", header.ApiKey)
 	}
