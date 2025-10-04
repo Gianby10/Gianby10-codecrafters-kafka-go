@@ -109,8 +109,8 @@ func (api *DescribeTopicsPartitionsRequestV0) Deserialize(r io.Reader) error {
 	}
 
 	// Leggo TAG_BUFFER Byte
-	if err := binary.Read(br.(io.Reader), binary.BigEndian, byte(0)); err != nil {
-		return err
-	}
+	// if err := binary.Read(br.(io.Reader), binary.BigEndian, byte(0)); err != nil {
+	// 	return err
+	// }
 	return nil
 }
