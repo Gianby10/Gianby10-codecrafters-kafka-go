@@ -326,36 +326,90 @@ func (km *KafkaMessage) Deserialize(r io.Reader, header Header, body Body) error
 	return nil
 }
 
+func ReadKafkaMessage(r io.Reader) (*KafkaMessage, error) {
+	var msgSize int32
+	if err := binary.Read(r, binary.BigEndian, &msgSize); err != nil {
+		return nil, err
+	}
+
+	// Leggo header per sapere la APIKEY e quindi il body
+	header := &RequestHeaderV2{}
+	if err := header.Deserialize(r); err != nil {
+		return nil, err
+	}
+
+	var body Body
+	switch header.ApiKey {
+	case 18: // ApiVersion
+		body = &ApiVersionsRequestV4{}
+	default:
+		return nil, fmt.Errorf("unsupported ApiKey: %d", header.ApiKey)
+	}
+
+	if err := body.Deserialize(r); err != nil {
+		return nil, err
+	}
+
+	return &KafkaMessage{
+		MessageSize: msgSize,
+		Header:      header,
+		Body:        body,
+	}, nil
+}
+
+func makeApiVersionsResponse(correlationId int32, errorCode int16) *KafkaMessage {
+	var apiVersionsBody *ApiVersionsResponseV4
+	if errorCode == 0 {
+		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0}
+
+	} else {
+		apiVersionsBody = &ApiVersionsResponseV4{
+			ErrorCode:      errorCode,
+			ThrottleTimeMs: 0,
+		}
+	}
+
+	return &KafkaMessage{
+		MessageSize: 0, // Impostata durante la serializzazione
+		Header: &ResponseHeaderV0{
+			CorrelationId: correlationId,
+		},
+		Body: apiVersionsBody,
+	}
+}
+
 func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
 
 	for {
-		reqMsg := &KafkaMessage{}
-		err := reqMsg.Deserialize(conn, &RequestHeaderV2{}, &ApiVersionsRequestV4{})
+
+		kafkaReqMsg, err := ReadKafkaMessage(conn)
 		if err != nil {
-			log.Printf("error deserializing kafka message: %s", err.Error())
-		}
-
-		log.Printf("Received message: %+v", reqMsg)
-
-		responseHeader := &ResponseHeaderV0{
-			CorrelationId: reqMsg.Header.(*RequestHeaderV2).CorrelationId,
+			if err == io.EOF {
+				log.Print("Connection closed by client.")
+				return
+			}
+			log.Printf("error reading kafka message: %s", err.Error())
+			return
 		}
 
 		var responseMsg *KafkaMessage
-
-		if reqMsg.Header.(*RequestHeaderV2).ApiVersion > 4 {
-			log.Printf("Unsupported ApiVersion: %d", reqMsg.Header.(*RequestHeaderV2).ApiKey)
-			responseMsg = &KafkaMessage{
-				Header: responseHeader,
-				Body:   &ApiVersionsResponseV4{ErrorCode: 35, ThrottleTimeMs: 0},
+		var apiKey int16 = kafkaReqMsg.Header.(*RequestHeaderV2).ApiKey
+		switch apiKey {
+		case 18: // ApiVersion
+			if kafkaReqMsg.Header.(*RequestHeaderV2).ApiVersion > 4 {
+				log.Printf("Unsupported ApiVersion: %d", kafkaReqMsg.Header.(*RequestHeaderV2).ApiVersion)
+				responseMsg = makeApiVersionsResponse(kafkaReqMsg.Header.(*RequestHeaderV2).CorrelationId, 35) // 35 = UnsupportedVersion
+			} else {
+				responseMsg = makeApiVersionsResponse(kafkaReqMsg.Header.(*RequestHeaderV2).CorrelationId, 0)
 			}
-		} else {
-			responseMsg = &KafkaMessage{
-				Header: responseHeader,
-				Body:   &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0},
-			}
+		case 75: // DescribeTopicsPartitions
+			// TODO
+			log.Printf("Received DescribeTopicsPartitions request, but not implemented yet. Bytes: %+v", kafkaReqMsg)
+		default:
+			log.Printf("Unsupported ApiKey: %d", apiKey)
+			return
 		}
 
 		responseBytes, err := responseMsg.Serialize()
