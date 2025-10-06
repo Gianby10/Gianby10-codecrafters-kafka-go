@@ -64,3 +64,18 @@ func writeCompactString(w io.Writer, s *string) error {
 	}
 	return nil
 }
+
+func getCorrelationIdFromHeader(header Header) int32 {
+	switch h := header.(type) {
+	case *ResponseHeaderV0:
+		return h.CorrelationId
+	case *RequestHeaderV2:
+		return h.CorrelationId
+	default:
+		return -1
+	}
+}
+
+func StringToPtr(s string) *string {
+	return &s
+}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -25,214 +24,6 @@ type Header interface {
 type Body interface {
 	Serialize(io.Writer) error
 	Deserialize(io.Reader) error
-}
-
-type ResponseHeaderV0 struct {
-	CorrelationId int32
-}
-
-type RequestHeaderV2 struct {
-	ApiKey        int16
-	ApiVersion    int16
-	CorrelationId int32
-	ClientId      *string
-	TAG_BUFFER    []byte
-}
-
-type ApiVersion struct {
-	ApiKey     int16
-	MinVersion int16
-	MaxVersion int16
-	TAG_BUFFER []byte
-}
-
-type ApiVersionsResponseV4 struct {
-	ErrorCode      int16
-	ApiKeys        []ApiVersion
-	ThrottleTimeMs int32
-	TAG_BUFFER     []byte
-}
-
-type ApiVersionsRequestV4 struct {
-	ClientId              *string // Client_software_name forse? COMPACT_STRING
-	ClientSoftwareVersion *string // COMPACT_STRING
-	TAG_BUFFER            []byte
-}
-
-func (rh *ResponseHeaderV0) Serialize(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, rh.CorrelationId)
-}
-
-func (rh *ResponseHeaderV0) Deserialize(r io.Reader) error {
-	return binary.Read(r, binary.BigEndian, &rh.CorrelationId)
-}
-
-func (rh *RequestHeaderV2) Deserialize(r io.Reader) error {
-	if err := binary.Read(r, binary.BigEndian, &rh.ApiKey); err != nil {
-		return err
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &rh.ApiVersion); err != nil {
-		return err
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &rh.CorrelationId); err != nil {
-		return err
-	}
-
-	var clientIdLen int16
-	if err := binary.Read(r, binary.BigEndian, &clientIdLen); err != nil {
-		return err
-	}
-
-	switch clientIdLen {
-	case -1:
-		rh.ClientId = nil
-	case 0:
-		empty := ""
-		rh.ClientId = &empty
-	default:
-		clientIdBuf := make([]byte, clientIdLen)
-		if _, err := io.ReadFull(r, clientIdBuf); err != nil {
-			return err
-		}
-		s := string(clientIdBuf)
-		rh.ClientId = &s
-	}
-
-	// Leggo un byte di TAG_BUFFER
-	var tagBuffer byte
-	if err := binary.Read(r, binary.BigEndian, &tagBuffer); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (rh *RequestHeaderV2) Serialize(w io.Writer) error {
-	if err := binary.Write(w, binary.BigEndian, rh.ApiKey); err != nil {
-		return err
-	}
-
-	if err := binary.Write(w, binary.BigEndian, rh.ApiVersion); err != nil {
-		return err
-	}
-
-	if err := binary.Write(w, binary.BigEndian, rh.CorrelationId); err != nil {
-		return err
-	}
-
-	if rh.ClientId == nil {
-		if err := binary.Write(w, binary.BigEndian, int16(-1)); err != nil {
-			return err
-		}
-	}
-
-	if rh.ClientId != nil {
-		if err := binary.Write(w, binary.BigEndian, int16(len(*rh.ClientId))); err != nil {
-			return err
-		}
-
-		if _, err := w.Write([]byte(*rh.ClientId)); err != nil {
-			return err
-		}
-	}
-
-	// Scrivi un byte di TAG_BUFFER
-	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (api *ApiVersionsResponseV4) Serialize(w io.Writer) error {
-	if err := binary.Write(w, binary.BigEndian, api.ErrorCode); err != nil {
-		return err
-	}
-
-	// Scrivo e mando la lunghezza dell'array di ApiKeys come UVARINT
-	apiKeysArrayLen := len(api.ApiKeys) + 1
-	apiKeysArrayLenBytes := make([]byte, binary.MaxVarintLen64)
-	bytesRead := binary.PutUvarint(apiKeysArrayLenBytes, uint64(apiKeysArrayLen))
-	if _, err := w.Write(apiKeysArrayLenBytes[:bytesRead]); err != nil {
-		return err
-	}
-
-	fmt.Printf("ApiKeys array len: %d", apiKeysArrayLenBytes[:bytesRead])
-	// Scrivo ora ogni ApiKey nell'array ApiKeys
-	for _, apiKey := range api.ApiKeys {
-		if err := binary.Write(w, binary.BigEndian, apiKey.ApiKey); err != nil {
-			return err
-		}
-		if err := binary.Write(w, binary.BigEndian, apiKey.MinVersion); err != nil {
-			return err
-		}
-		if err := binary.Write(w, binary.BigEndian, apiKey.MaxVersion); err != nil {
-			return err
-		}
-		// TAG_BUFFER
-		if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
-			return err
-		}
-	}
-	if err := binary.Write(w, binary.BigEndian, int32(api.ThrottleTimeMs)); err != nil {
-		return err
-	}
-
-	/// TAG_BUFFER
-	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (api *ApiVersionsResponseV4) Deserialize(r io.Reader) error {
-	// TODO
-	return binary.Read(r, binary.BigEndian, &api.ErrorCode)
-}
-
-func (api *ApiVersionsRequestV4) Serialize(w io.Writer) error {
-
-	writeCompactString(w, api.ClientId)
-
-	writeCompactString(w, api.ClientSoftwareVersion)
-
-	// Scrivo un byte vuoto di TAG_BUFFER
-	if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
-	// Per leggere un UVARINT ho bisogno di un io.ByteReader
-	// Se r non lo implementa, lo wrappo in un bufio.Reader che lo implementa
-	// (e che fa buffering, quindi è più efficiente)
-
-	br := bufio.NewReader(r)
-
-	// Leggo la lunghezza della COMPACT_STRING ClientId come UVARINT con un byte reader
-	clientId, err := readCompactString(br)
-	if err != nil {
-		return err
-	}
-	api.ClientId = clientId
-
-	// Leggo la lunghezza della COMPACT_STRING ClientSoftwareVersion come UVARINT con un byte reader
-	clientSwVer, err := readCompactString(br)
-	if err != nil {
-		return err
-	}
-	api.ClientSoftwareVersion = clientSwVer
-
-	// Leggo un byte di TAG_BUFFER
-	var tagBuffer byte
-	if err := binary.Read(br, binary.BigEndian, &tagBuffer); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (km *KafkaMessage) Serialize() ([]byte, error) {
@@ -309,20 +100,34 @@ func ReadKafkaRequestMessage(r io.Reader) (*KafkaMessage, error) {
 	}, nil
 }
 
-func makeApiVersionsResponse(correlationId int32, errorCode int16) *KafkaMessage {
-	var apiVersionsBody *ApiVersionsResponseV4
-	if errorCode == 0 {
-		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0}
+func WriteKafkaResponseMessage(w io.Writer, msg *KafkaMessage) error {
+	responseBytes, err := msg.Serialize()
+	if err != nil {
+		return fmt.Errorf("error serializing kafka response message: %s", err.Error())
+	}
+	_, err = w.Write(responseBytes)
+	if err != nil {
+		return fmt.Errorf("error writing kafka response message: %s", err.Error())
+	}
 
-	} else {
+	log.Printf("Sent response (size=%d) CorrelationId=%d", len(responseBytes), msg.Header.(*ResponseHeaderV0).CorrelationId)
+	return nil
+}
+
+func makeApiVersionsResponse(requestHeader *RequestHeaderV2) *KafkaMessage {
+	var apiVersionsBody *ApiVersionsResponseV4
+	correlationId := getCorrelationIdFromHeader(requestHeader)
+	if requestHeader.ApiVersion < 0 || requestHeader.ApiVersion > 4 {
 		apiVersionsBody = &ApiVersionsResponseV4{
-			ErrorCode:      errorCode,
+			ErrorCode:      35, // UNSUPPORTED_VERSION
 			ThrottleTimeMs: 0,
 		}
+		log.Printf("Unsupported ApiVersion: %d", requestHeader.ApiVersion)
+	} else {
+		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0}
 	}
 
 	return &KafkaMessage{
-		MessageSize: 0, // Impostata durante la serializzazione
 		Header: &ResponseHeaderV0{
 			CorrelationId: correlationId,
 		},
@@ -350,36 +155,31 @@ func handleConnection(conn net.Conn) {
 		var apiKey int16 = kafkaReqMsg.Header.(*RequestHeaderV2).ApiKey
 		switch apiKey {
 		case 18: // ApiVersion
-			if kafkaReqMsg.Header.(*RequestHeaderV2).ApiVersion > 4 {
-				log.Printf("Unsupported ApiVersion: %d", kafkaReqMsg.Header.(*RequestHeaderV2).ApiVersion)
-				responseMsg = makeApiVersionsResponse(kafkaReqMsg.Header.(*RequestHeaderV2).CorrelationId, 35) // 35 = UnsupportedVersion
-			} else {
-				responseMsg = makeApiVersionsResponse(kafkaReqMsg.Header.(*RequestHeaderV2).CorrelationId, 0)
-			}
+			responseMsg = makeApiVersionsResponse(kafkaReqMsg.Header.(*RequestHeaderV2))
 		case 75: // DescribeTopicsPartitions
 			// TODO
-			log.Printf("Received DescribeTopicsPartitions request, but not implemented yet. Bytes: %+v", kafkaReqMsg)
+			responseMsg = &KafkaMessage{
+				Header: &ResponseHeaderV1{
+					CorrelationId: getCorrelationIdFromHeader(kafkaReqMsg.Header.(*RequestHeaderV2)),
+				},
+				Body: &DescribeTopicsPartitionsResponseV0{
+					Topics: []DescribeTopicsPartitionsResponseTopic{{
+						ErrorCode:                 3,
+						TopicName:                 StringToPtr("foo"),
+						TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
+					}},
+				},
+			}
 		default:
 			log.Printf("Unsupported ApiKey: %d", apiKey)
 			return
 		}
-
-		responseBytes, err := responseMsg.Serialize()
-		if err != nil {
-			log.Printf("error serializing kafka response message: %s", err.Error())
-		}
-		conn.Write(responseBytes)
-		if err != nil {
-			log.Printf("error writing kafka response message: %s", err.Error())
-		}
+		WriteKafkaResponseMessage(conn, responseMsg)
 	}
 
 }
 
 func main() {
-
-	fmt.Println("Logs from your program will appear here!")
-
 	l, err := net.Listen("tcp", "0.0.0.0:9092")
 	if err != nil {
 		fmt.Println("Failed to bind to port 9092")
