@@ -168,6 +168,7 @@ func handleConnection(conn net.Conn) {
 						TopicName:                 StringToPtr("foo"),
 						TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
 					}},
+					NextCursor: 0xff, // -1
 				},
 			}
 		default:
