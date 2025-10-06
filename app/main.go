@@ -114,27 +114,6 @@ func WriteKafkaResponseMessage(w io.Writer, msg *KafkaMessage) error {
 	return nil
 }
 
-func makeApiVersionsResponse(requestHeader *RequestHeaderV2) *KafkaMessage {
-	var apiVersionsBody *ApiVersionsResponseV4
-	correlationId := getCorrelationIdFromHeader(requestHeader)
-	if requestHeader.ApiVersion < 0 || requestHeader.ApiVersion > 4 {
-		apiVersionsBody = &ApiVersionsResponseV4{
-			ErrorCode:      35, // UNSUPPORTED_VERSION
-			ThrottleTimeMs: 0,
-		}
-		log.Printf("Unsupported ApiVersion: %d", requestHeader.ApiVersion)
-	} else {
-		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0}
-	}
-
-	return &KafkaMessage{
-		Header: &ResponseHeaderV0{
-			CorrelationId: correlationId,
-		},
-		Body: apiVersionsBody,
-	}
-}
-
 func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
@@ -152,25 +131,15 @@ func handleConnection(conn net.Conn) {
 		}
 
 		var responseMsg *KafkaMessage
+		requestHeader := kafkaReqMsg.Header.(*RequestHeaderV2)
+
 		var apiKey int16 = kafkaReqMsg.Header.(*RequestHeaderV2).ApiKey
 		switch apiKey {
 		case 18: // ApiVersion
-			responseMsg = makeApiVersionsResponse(kafkaReqMsg.Header.(*RequestHeaderV2))
+			responseMsg = NewApiVersionsResponse(requestHeader)
 		case 75: // DescribeTopicsPartitions
-			// TODO
-			responseMsg = &KafkaMessage{
-				Header: &ResponseHeaderV1{
-					CorrelationId: getCorrelationIdFromHeader(kafkaReqMsg.Header.(*RequestHeaderV2)),
-				},
-				Body: &DescribeTopicsPartitionsResponseV0{
-					Topics: []DescribeTopicsPartitionsResponseTopic{{
-						ErrorCode:                 3,
-						TopicName:                 StringToPtr(*kafkaReqMsg.Body.(*DescribeTopicsPartitionsRequestV0).Topics[0].TopicName),
-						TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
-					}},
-					NextCursor: 0xff, // -1
-				},
-			}
+			requestBody := kafkaReqMsg.Body.(*DescribeTopicsPartitionsRequestV0)
+			responseMsg = NewDescribeTopicsPartitionsResponse(requestHeader, requestBody)
 		default:
 			log.Printf("Unsupported ApiKey: %d", apiKey)
 			return

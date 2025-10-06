@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 )
 
 type ApiVersion struct {
@@ -115,4 +116,25 @@ func (api *ApiVersionsRequestV4) Deserialize(r io.Reader) error {
 		return err
 	}
 	return nil
+}
+
+func NewApiVersionsResponse(requestHeader *RequestHeaderV2) *KafkaMessage {
+	var apiVersionsBody *ApiVersionsResponseV4
+	correlationId := getCorrelationIdFromHeader(requestHeader)
+	if requestHeader.ApiVersion < 0 || requestHeader.ApiVersion > 4 {
+		apiVersionsBody = &ApiVersionsResponseV4{
+			ErrorCode:      35, // UNSUPPORTED_VERSION
+			ThrottleTimeMs: 0,
+		}
+		log.Printf("Unsupported ApiVersion: %d", requestHeader.ApiVersion)
+	} else {
+		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0}
+	}
+
+	return &KafkaMessage{
+		Header: &ResponseHeaderV0{
+			CorrelationId: correlationId,
+		},
+		Body: apiVersionsBody,
+	}
 }

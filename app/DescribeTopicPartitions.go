@@ -221,3 +221,20 @@ func (api *DescribeTopicsPartitionsResponseV0) Deserialize(r io.Reader) error {
 	// TODO
 	return nil
 }
+
+func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *DescribeTopicsPartitionsRequestV0) *KafkaMessage {
+
+	return &KafkaMessage{
+		Header: &ResponseHeaderV1{
+			CorrelationId: getCorrelationIdFromHeader(requestHeader),
+		},
+		Body: &DescribeTopicsPartitionsResponseV0{
+			Topics: []DescribeTopicsPartitionsResponseTopic{{
+				ErrorCode:                 3,
+				TopicName:                 body.Topics[0].TopicName,
+				TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
+			}},
+			NextCursor: 0xff, // -1
+		},
+	}
+}
