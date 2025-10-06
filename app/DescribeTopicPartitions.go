@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -292,4 +293,19 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 			NextCursor: 0xff, // -1
 		},
 	}
+}
+
+// Cluster metadata file
+
+func ReadClusterMetadata(r io.Reader) {
+	// file, err := os.Open("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
+	// if err != nil {
+	// 	return
+	// }
+
+	dat, err := os.ReadFile("/tmp/dat")
+	if err != nil {
+		return
+	}
+	fmt.Printf("%x", dat)
 }
