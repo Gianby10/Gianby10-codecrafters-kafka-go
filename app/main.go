@@ -165,7 +165,7 @@ func handleConnection(conn net.Conn) {
 				Body: &DescribeTopicsPartitionsResponseV0{
 					Topics: []DescribeTopicsPartitionsResponseTopic{{
 						ErrorCode:                 3,
-						TopicName:                 StringToPtr("foo"),
+						TopicName:                 StringToPtr(*kafkaReqMsg.Body.(*DescribeTopicsPartitionsRequestV0).Topics[0].TopicName),
 						TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
 					}},
 					NextCursor: 0xff, // -1
