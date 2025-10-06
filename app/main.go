@@ -117,7 +117,7 @@ func WriteKafkaResponseMessage(w io.Writer, msg *KafkaMessage) error {
 func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
-
+	ReadClusterMetadata(nil)
 	for {
 
 		kafkaReqMsg, err := ReadKafkaRequestMessage(conn)
@@ -155,16 +155,15 @@ func main() {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
 	}
-	ReadClusterMetadata(nil)
-	_ = l
-	// for {
-	// 	conn, err := l.Accept()
-	// 	if err != nil {
-	// 		fmt.Println("Error accepting connection: ", err.Error())
-	// 		os.Exit(1)
-	// 	}
 
-	// 	go handleConnection(conn)
-	// }
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+
+		go handleConnection(conn)
+	}
 
 }
