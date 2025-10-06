@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -78,4 +79,22 @@ func getCorrelationIdFromHeader(header Header) int32 {
 
 func StringToPtr(s string) *string {
 	return &s
+}
+
+func WriteInt32CompactArray(w io.Writer, values []int32) error {
+	var arrayLenBytes [binary.MaxVarintLen64]byte
+	// Scrivo lunghezza del COMPACT_ARRAY come UVARINT
+	arrayLen := len(values) + 1 // +1 per encoding COMPACT_ARRAY
+	bytesRead := binary.PutUvarint(arrayLenBytes[:], uint64(arrayLen))
+	if _, err := w.Write(arrayLenBytes[:bytesRead]); err != nil {
+		return fmt.Errorf("write compact array length: %w", err)
+	}
+
+	// Scrivo ora ogni int32 nell'array
+	for _, value := range values {
+		if err := binary.Write(w, binary.BigEndian, value); err != nil {
+			return fmt.Errorf("write int32 element: %w", err)
+		}
+	}
+	return nil
 }

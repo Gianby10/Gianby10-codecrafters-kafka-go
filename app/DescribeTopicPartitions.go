@@ -121,7 +121,16 @@ type DescribeTopicsPartitionsResponseV0 struct {
 	TAG_BUFFER     []byte
 }
 type Partition struct {
-	sburra byte
+	ErrorCode              int16
+	ParitionIndex          int32
+	LeaderId               int32
+	LeaderEpoch            int32
+	ReplicaNodes           []int32
+	IsrNodes               []int32
+	EligibleLeaderReplicas []int32
+	LastKnownELR           []int32
+	OfflineReplicas        []int32
+	TaggedFields           []byte
 }
 
 type DescribeTopicsPartitionsResponseTopic struct {
@@ -189,8 +198,54 @@ func (api *DescribeTopicsPartitionsResponseV0) Serialize(w io.Writer) error {
 
 		// Scrivo ora ogni Partition nell'array PartitionsArray
 		for _, partition := range topic.PartitionsArray {
-			// TODO
-			_ = partition
+			// Scrivo il campo ErrorCode della Partition(int16)
+			if err := binary.Write(w, binary.BigEndian, partition.ErrorCode); err != nil {
+				return err
+			}
+
+			// Scrivo il campo PartitionIndex della Partition(int32)
+			if err := binary.Write(w, binary.BigEndian, partition.ParitionIndex); err != nil {
+				return err
+			}
+
+			// Scrivo il campo LeaderId della Partition(int32)
+			if err := binary.Write(w, binary.BigEndian, partition.LeaderId); err != nil {
+				return err
+			}
+
+			// Scrivo il campo LeaderEpoch della Partition(int32)
+			if err := binary.Write(w, binary.BigEndian, partition.LeaderEpoch); err != nil {
+				return err
+			}
+
+			// Scrivo la COMPACT_ARRAY ReplicaNodes (array di int32)
+			if err := WriteInt32CompactArray(w, partition.ReplicaNodes); err != nil {
+				return err
+			}
+
+			// Scrivo COMPACT_ARRAY IsrNodes come UVARINT
+			if err := WriteInt32CompactArray(w, partition.IsrNodes); err != nil {
+				return err
+			}
+
+			// Scrivo COMPACT_ARRAY EligibleLeaderReplicas come UVARINT
+			if err := WriteInt32CompactArray(w, partition.EligibleLeaderReplicas); err != nil {
+				return err
+			}
+
+			// Scrivo COMPACT_ARRAY LastKnownELR come UVARINT
+			if err := WriteInt32CompactArray(w, partition.LastKnownELR); err != nil {
+				return err
+			}
+			// Scrivo COMPACT_ARRAY OfflineReplicas come UVARINT
+			if err := WriteInt32CompactArray(w, partition.OfflineReplicas); err != nil {
+				return err
+			}
+
+			// TAG_BUFFER
+			if err := binary.Write(w, binary.BigEndian, byte(0)); err != nil {
+				return err
+			}
 		}
 
 		// Scrivo il campo TopicAuthorizedOperations (int32)
