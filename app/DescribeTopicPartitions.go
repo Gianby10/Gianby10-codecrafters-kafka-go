@@ -303,7 +303,7 @@ func ReadClusterMetadata(r io.Reader) {
 	// 	return
 	// }
 
-	dat, err := os.ReadFile("/tmp/dat")
+	dat, err := os.ReadFile("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
 	if err != nil {
 		return
 	}
