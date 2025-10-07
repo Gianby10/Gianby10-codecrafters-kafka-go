@@ -306,6 +306,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 
 		// Leggo Attributes (del record) (byte)
 		if err := binary.Read(recordReader, binary.BigEndian, &record.Attributes); err != nil {
+			fmt.Printf("Errore negli attributi: %w", err)
 			return nil, err
 		}
 		fmt.Printf("Batch fin ora: %+v", batch)
