@@ -232,60 +232,59 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	}
 
 	// reader limitato al contenuto del batch
-	batchReader := io.LimitReader(r, int64(batch.BatchLength))
 
 	// Leggo PartitionLeaderEpoch (int32)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.PartitionLeaderEpoch); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.PartitionLeaderEpoch); err != nil {
 		return nil, err
 	}
 
 	// Leggo MagicByte (byte)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.MagicByte); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.MagicByte); err != nil {
 		return nil, err
 	}
 
 	// Leggo CRC (int32)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.CRC); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.CRC); err != nil {
 		return nil, err
 	}
 
 	// Leggo Attributes (int16)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.Attributes); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.Attributes); err != nil {
 		return nil, err
 	}
 
 	// Leggo LastOffsetDelta (int32)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.LastOffsetDelta); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.LastOffsetDelta); err != nil {
 		return nil, err
 	}
 
 	// Leggo BaseTimestamp (int64)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.BaseTimestamp); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.BaseTimestamp); err != nil {
 		return nil, err
 	}
 
 	// Leggo MaxTimestamp (int64)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.MaxTimestamp); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.MaxTimestamp); err != nil {
 		return nil, err
 	}
 
 	// Leggo ProducerId (int64)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.ProducerId); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.ProducerId); err != nil {
 		return nil, err
 	}
 
 	// Leggo ProducerEpoch (int16)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.ProducerEpoch); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.ProducerEpoch); err != nil {
 		return nil, err
 	}
 
 	// Leggo BaseSequence (int32)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.BaseSequence); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.BaseSequence); err != nil {
 		return nil, err
 	}
 
 	// Leggo RecordsLength: quanti record ci sono (int32)
-	if err := binary.Read(batchReader, binary.BigEndian, &batch.RecordsLength); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &batch.RecordsLength); err != nil {
 		return nil, err
 	}
 
@@ -295,38 +294,35 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		record := ClusterMetadataRecord{}
 
 		// Leggo Length (del record) (VARINT)
-		length, err := ReadVarInt(batchReader)
+		length, err := ReadVarInt(r)
 		if err != nil {
 			return nil, err
 		}
 		record.Length = length
 
-		// LimitReader per non uscire dai confini del record
-		recordReader := io.LimitReader(batchReader, length)
-
 		// Leggo Attributes (del record) (byte)
-		if err := binary.Read(recordReader, binary.BigEndian, &record.Attributes); err != nil {
+		if err := binary.Read(r, binary.BigEndian, &record.Attributes); err != nil {
 			fmt.Printf("Errore negli attributi: %w", err)
 			return nil, err
 		}
 		fmt.Printf("Batch fin ora: %+v", batch)
 
 		// Leggo TimestampDelta (del record) (VARINT)
-		timestampDelta, err := ReadVarInt(recordReader)
+		timestampDelta, err := ReadVarInt(r)
 		if err != nil {
 			return nil, err
 		}
 		record.TimestampDelta = timestampDelta
 
 		// Leggo OffsetDelta (del record) (VARINT)
-		offsetDelta, err := ReadVarInt(recordReader)
+		offsetDelta, err := ReadVarInt(r)
 		if err != nil {
 			return nil, err
 		}
 		record.OffsetDelta = offsetDelta
 
 		// Leggo keyLength (del record) (VARINT)
-		keyLength, err := ReadVarInt(recordReader)
+		keyLength, err := ReadVarInt(r)
 		if err != nil {
 			return nil, err
 		}
@@ -337,36 +333,36 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 			record.Key = nil
 		} else {
 			key := make([]byte, record.KeyLength)
-			if _, err := io.ReadFull(recordReader, key); err != nil {
+			if _, err := io.ReadFull(r, key); err != nil {
 				return nil, err
 			}
 			record.Key = key
 		}
 
 		// Leggo ValueLength (VARINT)
-		valueLength, err := ReadVarInt(recordReader)
+		valueLength, err := ReadVarInt(r)
 		if err != nil {
 			return nil, err
 		}
 		record.ValueLength = valueLength
 
-		var valueReader io.Reader
-		if record.ValueLength > 0 {
-			valueReader = io.LimitReader(recordReader, record.ValueLength)
-		} else {
-			// valueReader = recordReader // fallback (Kafka usa -1 per null)
-			valueReader = io.LimitReader(recordReader, 0)
-		}
+		// var valueReader io.Reader
+		// if record.ValueLength > 0 {
+		// 	valueReader = io.LimitReader(recordReader, record.ValueLength)
+		// } else {
+		// 	// valueReader = recordReader // fallback (Kafka usa -1 per null)
+		// 	valueReader = io.LimitReader(recordReader, 0)
+		// }
 
 		// Leggo Value
-		recordValue, err := ReadClusterMetadataRecordValue(valueReader)
+		recordValue, err := ReadClusterMetadataRecordValue(r)
 		if err != nil {
 			return nil, err
 		}
 
 		record.Value = recordValue
 
-		headerArrayCount, err := ReadUVarInt(recordReader)
+		headerArrayCount, err := ReadUVarInt(r)
 		if err != nil {
 			return nil, err
 		}
