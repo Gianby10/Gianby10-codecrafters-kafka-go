@@ -306,7 +306,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 			fmt.Printf("Errore negli attributi: %w", err)
 			return nil, err
 		}
-		fmt.Printf("Batch fin ora: %+v", batch)
 
 		// Leggo TimestampDelta (del record) (VARINT)
 		timestampDelta, err := ReadVarInt(r)
@@ -399,6 +398,7 @@ func ReadClusterMetadata() error {
 		batches = append(batches, *batch)
 
 	}
+	fmt.Printf("Batch len: %d", len(batches))
 
 	return nil
 }
