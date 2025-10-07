@@ -118,9 +118,6 @@ func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
 	for {
-		if err := ReadClusterMetadata(); err != nil {
-			log.Print(err)
-		}
 
 		kafkaReqMsg, err := ReadKafkaRequestMessage(conn)
 		if err != nil {
@@ -156,6 +153,10 @@ func main() {
 	if err != nil {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
+	}
+
+	if err := ReadClusterMetadata(); err != nil {
+		log.Print(err)
 	}
 
 	for {
