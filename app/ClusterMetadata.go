@@ -400,6 +400,6 @@ func ReadClusterMetadata() error {
 
 	}
 
-	fmt.Printf("Lezzo: %v", batches)
+	fmt.Printf("TopicId: %v", batches[1].Records[1].Value.(TopicRecordValue).TopicId)
 	return nil
 }
