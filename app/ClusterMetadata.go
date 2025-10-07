@@ -387,9 +387,9 @@ func ReadClusterMetadata() error {
 	batches := make([]ClusterMetadataRecordBatch, 0)
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(f)
-
+		fmt.Printf("Lezzo: %v\n", batch)
 		if err == io.EOF {
-			fmt.Print("Hit an EOF")
+			fmt.Println("Hit an EOF")
 
 			break
 		}
