@@ -118,7 +118,9 @@ func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
 	for {
-		ReadClusterMetadata()
+		if err := ReadClusterMetadata(); err != nil {
+			log.Print(err)
+		}
 
 		kafkaReqMsg, err := ReadKafkaRequestMessage(conn)
 		if err != nil {

@@ -383,7 +383,7 @@ func ReadClusterMetadata() error {
 		return err
 	}
 	defer f.Close()
-
+	fmt.Print("File opened")
 	batches := make([]ClusterMetadataRecordBatch, 0)
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(f)
