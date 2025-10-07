@@ -289,6 +289,8 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		return nil, err
 	}
 
+	fmt.Printf("Batch fin ora: %v", batch)
+
 	// Leggo ora i record (che non sono un COMPACT_ARRAY)
 	records := make([]ClusterMetadataRecord, batch.RecordsLength)
 	for i := 0; i < int(batch.RecordsLength); i++ {
@@ -383,11 +385,9 @@ func ReadClusterMetadata() error {
 		return err
 	}
 	defer f.Close()
-	fmt.Print("File opened")
 	batches := make([]ClusterMetadataRecordBatch, 0)
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(f)
-		fmt.Printf("Lezzo: %v\n", batch)
 		if err == io.EOF {
 			fmt.Println("Hit an EOF")
 
@@ -401,6 +401,5 @@ func ReadClusterMetadata() error {
 
 	}
 
-	fmt.Printf("Batches len: %d", len(batches))
 	return nil
 }
