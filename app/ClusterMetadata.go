@@ -390,6 +390,7 @@ func ReadClusterMetadata() error {
 
 		if err == io.EOF {
 			fmt.Print("Hit an EOF")
+
 			break
 		}
 		if err != nil {
@@ -400,6 +401,6 @@ func ReadClusterMetadata() error {
 
 	}
 
-	fmt.Printf("TopicId: %v", batches[1].Records[1].Value.(TopicRecordValue).TopicId)
+	fmt.Printf("Batches len: %d", len(batches))
 	return nil
 }
