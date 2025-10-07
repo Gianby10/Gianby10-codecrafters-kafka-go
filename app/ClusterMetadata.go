@@ -354,7 +354,8 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		if record.ValueLength > 0 {
 			valueReader = io.LimitReader(recordReader, record.ValueLength)
 		} else {
-			valueReader = recordReader // fallback (Kafka usa -1 per null)
+			// valueReader = recordReader // fallback (Kafka usa -1 per null)
+			valueReader = io.LimitReader(recordReader, 0)
 		}
 
 		// Leggo Value
