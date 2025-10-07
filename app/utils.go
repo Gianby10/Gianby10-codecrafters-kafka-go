@@ -98,3 +98,79 @@ func WriteInt32CompactArray(w io.Writer, values []int32) error {
 	}
 	return nil
 }
+
+func ReadInt32CompactArray(r io.Reader) ([]int32, error) {
+	arrayLen, err := ReadUVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if arrayLen == 0 {
+		return nil, nil // 0 = array nil
+	}
+
+	if arrayLen == 1 {
+		return []int32{}, nil // 1 = array vuoto
+	}
+
+	arrayLen-- // Rimuoviamo 1 per il byte di terminazione // https://kafka.apache.org/protocol.html#The_Messages_DescribeTopicPartitions
+
+	array := make([]int32, arrayLen)
+	for i := uint64(0); i < arrayLen; i++ {
+		if err := binary.Read(r, binary.BigEndian, &array[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	return array, nil
+}
+
+func ReadVarInt(r io.Reader) (int64, error) {
+	br, ok := r.(io.ByteReader)
+	if !ok {
+		br = bufio.NewReader(r)
+	}
+	return binary.ReadVarint(br)
+}
+
+func ReadUVarInt(r io.Reader) (uint64, error) {
+	br, ok := r.(io.ByteReader)
+	if !ok {
+		br = bufio.NewReader(r)
+	}
+	return binary.ReadUvarint(br)
+}
+
+func ReadUUID(r io.Reader) ([16]byte, error) {
+	var uuid [16]byte
+	if _, err := io.ReadFull(r, uuid[:]); err != nil {
+		return [16]byte{}, err
+	}
+	return uuid, nil
+}
+
+func ReadGenericCompactArray[T any](r io.Reader) ([]T, error) {
+	arrayLen, err := ReadUVarInt(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if arrayLen == 0 {
+		return nil, nil // 0 = array nil
+	}
+
+	if arrayLen == 1 {
+		return []T{}, nil // 1 = array vuoto
+	}
+
+	arrayLen-- // Rimuoviamo 1 per il byte di terminazione // https://kafka.apache.org/protocol.html#The_Messages_DescribeTopicPartitions
+
+	array := make([]T, arrayLen)
+	for i := range array {
+		if err := binary.Read(r, binary.BigEndian, &array[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	return array, nil
+}

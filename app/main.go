@@ -117,7 +117,6 @@ func WriteKafkaResponseMessage(w io.Writer, msg *KafkaMessage) error {
 func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
-	ReadClusterMetadata(nil)
 	for {
 
 		kafkaReqMsg, err := ReadKafkaRequestMessage(conn)
