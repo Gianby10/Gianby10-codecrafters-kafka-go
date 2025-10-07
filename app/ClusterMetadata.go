@@ -289,7 +289,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		return nil, err
 	}
 
-	fmt.Printf("Batch fin ora: %v", batch)
+	fmt.Printf("Batch fin ora: %+v", batch)
 
 	// Leggo ora i record (che non sono un COMPACT_ARRAY)
 	records := make([]ClusterMetadataRecord, batch.RecordsLength)
