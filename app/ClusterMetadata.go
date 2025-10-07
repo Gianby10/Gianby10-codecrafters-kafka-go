@@ -301,6 +301,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		}
 		record.Length = length
 
+		fmt.Printf("Batch fin ora: %+v", batch)
 		// LimitReader per non uscire dai confini del record
 		recordReader := io.LimitReader(batchReader, length)
 
@@ -308,8 +309,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		if err := binary.Read(recordReader, binary.BigEndian, &record.Attributes); err != nil {
 			return nil, err
 		}
-
-		fmt.Printf("Batch fin ora: %+v", batch)
 
 		// Leggo TimestampDelta (del record) (VARINT)
 		timestampDelta, err := ReadVarInt(recordReader)
