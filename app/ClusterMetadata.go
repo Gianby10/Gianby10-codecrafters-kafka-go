@@ -303,7 +303,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 
 		// Leggo Attributes (del record) (byte)
 		if err := binary.Read(r, binary.BigEndian, &record.Attributes); err != nil {
-			fmt.Printf("Errore negli attributi: %w", err)
 			return nil, err
 		}
 
@@ -346,14 +345,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		}
 		record.ValueLength = valueLength
 
-		// var valueReader io.Reader
-		// if record.ValueLength > 0 {
-		// 	valueReader = io.LimitReader(recordReader, record.ValueLength)
-		// } else {
-		// 	// valueReader = recordReader // fallback (Kafka usa -1 per null)
-		// 	valueReader = io.LimitReader(recordReader, 0)
-		// }
-
 		// Leggo Value
 		recordValue, err := ReadClusterMetadataRecordValue(r)
 		if err != nil {
@@ -372,7 +363,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	}
 
 	batch.Records = records
-	fmt.Printf("Batch: %+v", batch)
 	return &batch, nil
 }
 
@@ -392,7 +382,7 @@ func ReadClusterMetadata() error {
 			break
 		}
 		if err != nil {
-			return err
+			fmt.Printf("ERROR: %w", err)
 		}
 
 		batches = append(batches, *batch)
