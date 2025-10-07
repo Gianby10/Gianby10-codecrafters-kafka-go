@@ -372,7 +372,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	}
 
 	batch.Records = records
-
+	fmt.Printf("Batch: %+v", batch)
 	return &batch, nil
 }
 
