@@ -300,7 +300,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 			return nil, err
 		}
 		record.Length = length
-
+		fmt.Printf("Record len: %d", length)
 		// LimitReader per non uscire dai confini del record
 		recordReader := io.LimitReader(batchReader, length)
 
