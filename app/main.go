@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 )
 
 type KafkaMessage struct {
@@ -132,6 +133,12 @@ func handleConnection(conn net.Conn) {
 		var responseMsg *KafkaMessage
 		requestHeader := kafkaReqMsg.Header.(*RequestHeaderV2)
 
+		if err := ReadClusterMetadata(); err != nil {
+			log.Print(err)
+		}
+
+		time.Sleep(time.Second * 3)
+
 		var apiKey int16 = kafkaReqMsg.Header.(*RequestHeaderV2).ApiKey
 		switch apiKey {
 		case 18: // ApiVersion
@@ -153,10 +160,6 @@ func main() {
 	if err != nil {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
-	}
-
-	if err := ReadClusterMetadata(); err != nil {
-		log.Print(err)
 	}
 
 	for {
