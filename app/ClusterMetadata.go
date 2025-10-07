@@ -289,8 +289,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		return nil, err
 	}
 
-	fmt.Printf("Batch fin ora: %+v", batch)
-
 	// Leggo ora i record (che non sono un COMPACT_ARRAY)
 	records := make([]ClusterMetadataRecord, batch.RecordsLength)
 	for i := 0; i < int(batch.RecordsLength); i++ {
@@ -332,6 +330,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		}
 		record.KeyLength = keyLength
 
+		fmt.Printf("Batch fin ora: %+v", batch)
 		// Se record len è -1 significa che array è nil, altrimenti lo instanziamo
 		if record.KeyLength == -1 {
 			record.Key = nil
