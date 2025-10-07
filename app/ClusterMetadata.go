@@ -382,7 +382,7 @@ func ReadClusterMetadata() error {
 			break
 		}
 		if err != nil {
-			fmt.Printf("ERROR: %w", err)
+			fmt.Printf("ERROR: %s", err)
 		}
 
 		batches = append(batches, *batch)
