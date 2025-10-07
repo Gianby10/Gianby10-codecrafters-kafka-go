@@ -301,6 +301,8 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		}
 		record.Length = length
 
+		fmt.Printf("Batch fin ora: %+v", batch)
+
 		// LimitReader per non uscire dai confini del record
 		recordReader := io.LimitReader(batchReader, length)
 
@@ -330,7 +332,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		}
 		record.KeyLength = keyLength
 
-		fmt.Printf("Batch fin ora: %+v", batch)
 		// Se record len è -1 significa che array è nil, altrimenti lo instanziamo
 		if record.KeyLength == -1 {
 			record.Key = nil
