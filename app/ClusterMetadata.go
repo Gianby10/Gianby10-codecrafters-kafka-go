@@ -377,10 +377,10 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	return &batch, nil
 }
 
-func ReadClusterMetadata() {
+func ReadClusterMetadata() error {
 	f, err := os.Open("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
 	if err != nil {
-		return
+		return err
 	}
 	defer f.Close()
 
@@ -389,10 +389,11 @@ func ReadClusterMetadata() {
 		batch, err := ReadClusterMetadataRecordBatch(f)
 
 		if err == io.EOF {
+			fmt.Print("Hit an EOF")
 			break
 		}
 		if err != nil {
-			return
+			return err
 		}
 
 		batches = append(batches, *batch)
@@ -400,5 +401,5 @@ func ReadClusterMetadata() {
 	}
 
 	fmt.Printf("Lezzo: %v", batches)
-
+	return nil
 }
