@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-func readCompactString(r io.Reader) (*string, error) {
+func ReadCompactString(r io.Reader) (*string, error) {
 	br, ok := r.(io.ByteReader)
 	if !ok {
 		br = bufio.NewReader(r)
@@ -36,7 +36,7 @@ func readCompactString(r io.Reader) (*string, error) {
 	}
 }
 
-func writeCompactString(w io.Writer, s *string) error {
+func WriteCompactString(w io.Writer, s *string) error {
 	// s è una COMPACT_STRING quindi prima la lunghezza come UVARINT e poi la stringa
 	// Una COMPACT_STRING può essere null, in quel caso la lunghezza è 0
 	// Può essere vuota, in quel caso la lunghezza è 1 (1 byte per il terminatore)
@@ -66,7 +66,7 @@ func writeCompactString(w io.Writer, s *string) error {
 	return nil
 }
 
-func getCorrelationIdFromHeader(header Header) int32 {
+func GetCorrelationIdFromHeader(header Header) int32 {
 	switch h := header.(type) {
 	case *ResponseHeaderV0:
 		return h.CorrelationId
