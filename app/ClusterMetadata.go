@@ -291,6 +291,8 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 		return nil, err
 	}
 
+	fmt.Printf("[DEBUG] RecordsLen=%d\n", batch.RecordsLength)
+
 	// Leggo ora i record (che non sono un COMPACT_ARRAY)
 	records := make([]ClusterMetadataRecord, 0, batch.RecordsLength)
 	for i := 0; i < int(batch.RecordsLength); i++ {
