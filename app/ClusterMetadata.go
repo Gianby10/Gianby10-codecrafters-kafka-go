@@ -382,15 +382,13 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	return &batch, nil
 }
 
-func LoadClusterMetadata(path string) (map[string][16]byte, error) {
-	// "/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log"
+func LoadClusterMetadata(path string) ([]ClusterMetadataRecordBatch, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	topics := make(map[string][16]byte)
-	batches := make([]ClusterMetadataRecordBatch, 0, 6)
+	batches := make([]ClusterMetadataRecordBatch, 0, 16)
 	br := bufio.NewReader(f)
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(br)
@@ -400,20 +398,87 @@ func LoadClusterMetadata(path string) (map[string][16]byte, error) {
 		}
 
 		if err != nil {
-			fmt.Printf("ERROR: %s", err)
 			return nil, err
 		}
 
 		batches = append(batches, *batch)
+		// for _, record := range batch.Records {
+		// 	if topicRecord, ok := record.Value.(*TopicRecordValue); ok {
+		// 		if topicRecord.TopicName != nil {
+		// 			topics[*topicRecord.TopicName] = topicRecord.TopicId
+		// 		}
+		// 	}
+		// }
+	}
+	return batches, nil
+}
+
+// var ClusterMetadataCache []ClusterMetadataRecordBatch
+
+type ClusterMetadata struct {
+	TopicInfo     map[string][16]byte
+	PartitionInfo map[[16]byte][]Partition
+}
+
+var ClusterMetadataCache ClusterMetadata
+
+func init() {
+	var err error
+	recordBatches, err := LoadClusterMetadata("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
+	if err != nil {
+		log.Printf("Cannot load cluster metadata: %v", err)
+		return
+	}
+	// Parsing
+	ClusterMetadataCache.TopicInfo = ParseMetadataTopicInfo(recordBatches)
+	ClusterMetadataCache.PartitionInfo = ParseMetadataTopicPartitions(recordBatches)
+	//
+
+	log.Printf("Loaded %d records from cluster metadata", len(recordBatches))
+}
+
+func ParseMetadataTopicInfo(batches []ClusterMetadataRecordBatch) map[string][16]byte {
+	// Returns a map topicName[topicUUID]
+
+	topicInfo := make(map[string][16]byte)
+
+	for _, batch := range batches {
 		for _, record := range batch.Records {
 			if topicRecord, ok := record.Value.(*TopicRecordValue); ok {
 				if topicRecord.TopicName != nil {
-					topics[*topicRecord.TopicName] = topicRecord.TopicId
-					log.Printf("Inserted topic: %s; UUID: %x", *record.Value.(*TopicRecordValue).TopicName, record.Value.(*TopicRecordValue).TopicId)
+					topicInfo[*topicRecord.TopicName] = topicRecord.TopicId
 				}
 			}
 		}
-
 	}
-	return topics, nil
+
+	return topicInfo
+}
+
+func ParseMetadataTopicPartitions(batches []ClusterMetadataRecordBatch) map[[16]byte][]Partition {
+	// Returns a map topicUUID[]Partition
+
+	partitionInfo := make(map[[16]byte][]Partition)
+
+	for _, batch := range batches {
+		for _, record := range batch.Records {
+			if partitionRecord, ok := record.Value.(*PartitionRecordValue); ok {
+				partition := Partition{
+					ParitionIndex: partitionRecord.PartitionId,
+					LeaderId:      partitionRecord.Leader,
+					LeaderEpoch:   partitionRecord.LeaderEpoch,
+					ReplicaNodes:  partitionRecord.Replicas,
+					IsrNodes:      partitionRecord.Isr,
+					// EligibleLeaderReplicas: partitionRecord,
+					// LastKnownELR: ,
+					// OfflineReplicas: ,
+					ErrorCode: 0,
+				}
+
+				partitionInfo[partitionRecord.TopicUUID] = append(partitionInfo[partitionRecord.TopicUUID], partition)
+			}
+		}
+	}
+
+	return partitionInfo
 }

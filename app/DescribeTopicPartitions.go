@@ -131,7 +131,7 @@ type Partition struct {
 	EligibleLeaderReplicas []int32
 	LastKnownELR           []int32
 	OfflineReplicas        []int32
-	TaggedFields           []byte
+	TaggedFields           byte // TODO: byte -> []byte
 }
 
 type DescribeTopicsPartitionsResponseTopic struct {
@@ -283,9 +283,12 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 		topicUUID [16]byte
 		errorCode int16 = 0
 	)
+
 	topicName := *body.Topics[0].TopicName
-	if uuid, ok := ClusterTopics[topicName]; ok {
+	var partitions []Partition
+	if uuid, ok := ClusterMetadataCache.TopicInfo[topicName]; ok {
 		topicUUID = uuid
+		partitions = ClusterMetadataCache.PartitionInfo[topicUUID]
 	} else {
 		log.Printf("Topic %s not found in cluster metadata", topicName)
 		errorCode = 3 // UNKNOWN_TOPIC_OR_PARTITION
@@ -300,6 +303,7 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 				TopicName:                 body.Topics[0].TopicName,
 				TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
 				TopicId:                   topicUUID,
+				PartitionsArray:           partitions,
 			}},
 			NextCursor: 0xff, // -1
 		},
