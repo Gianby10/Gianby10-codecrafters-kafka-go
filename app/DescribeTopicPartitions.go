@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -282,39 +281,33 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 
 	responseBody := &DescribeTopicsPartitionsResponseV0{}
 	responseBody.NextCursor = 0xff // -1
-	// var responseTopics []DescribeTopicsPartitionsResponseTopic
-	// for _, topic := range body.Topics {
-	// 	if uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]; ok {
-	// 		partitions := ClusterMetadataCache.PartitionInfo[uuid]
-	// 		responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
-	// 			ErrorCode:                 0,
-	// 			TopicName:                 topic.TopicName,
-	// 			TopicId:                   uuid,
-	// 			PartitionsArray:           partitions,
-	// 			TopicAuthorizedOperations: 3576,
-	// 		})
-	// 	} else {
-	// 		responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
-	// 			ErrorCode:                 3, // UNKNOWN_TOPIC_OR_PARTITION
-	// 			TopicName:                 topic.TopicName,
-	// 			TopicAuthorizedOperations: 3576,
-	// 		})
-	// 	}
-	// }
+	var responseTopics []DescribeTopicsPartitionsResponseTopic
+	for _, topic := range body.Topics {
+		fmt.Println("Inside req body topics loop")
+		if uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]; ok {
+			partitions := ClusterMetadataCache.PartitionInfo[uuid]
+			responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
+				ErrorCode:                 0,
+				TopicName:                 topic.TopicName,
+				TopicId:                   uuid,
+				PartitionsArray:           partitions,
+				TopicAuthorizedOperations: 3576,
+			})
+		} else {
+			responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
+				ErrorCode:                 3, // UNKNOWN_TOPIC_OR_PARTITION
+				TopicName:                 topic.TopicName,
+				TopicAuthorizedOperations: 3576,
+			})
+		}
+	}
 
-	// responseBody.Topics = responseTopics
-	log.Println("Creating new Kafka Message Describe Topics Partitions")
+	responseBody.Topics = responseTopics
+
 	return &KafkaMessage{
 		Header: &ResponseHeaderV1{
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
 		},
-		Body: &DescribeTopicsPartitionsResponseV0{
-			NextCursor: 0xff,
-			Topics: []DescribeTopicsPartitionsResponseTopic{{
-				ErrorCode:                 3,
-				TopicName:                 StringToPtr("mario"),
-				TopicAuthorizedOperations: 3576,
-			}},
-		},
+		Body: responseBody,
 	}
 }
