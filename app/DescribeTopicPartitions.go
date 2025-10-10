@@ -29,7 +29,6 @@ func (api *DescribeTopicsPartitionsRequestV0) Serialize(w io.Writer) error {
 		return err
 	}
 
-	fmt.Printf("Topics array len: %d", topicsArrayLenBytes[:bytesRead])
 	// Scrivo ora ogni ApiKey nell'array ApiKeys
 	for _, topic := range api.Topics {
 		// Scrivo la COMPACT_STRING TopicName (con tanto di byte di lunghezza)
@@ -159,7 +158,6 @@ func (api *DescribeTopicsPartitionsResponseV0) Serialize(w io.Writer) error {
 		return err
 	}
 
-	fmt.Printf("Topics array len: %d", topicsArrayLenBytes[:bytesRead])
 	// Scrivo ora ogni ApiKey nell'array ApiKeys
 	for _, topic := range api.Topics {
 
@@ -194,8 +192,6 @@ func (api *DescribeTopicsPartitionsResponseV0) Serialize(w io.Writer) error {
 		if _, err := w.Write(partitionsArrayLenBytes[:bytesRead]); err != nil {
 			return err
 		}
-
-		fmt.Printf("Partitions array len: %d", partitionsArrayLenBytes[:bytesRead])
 
 		// Scrivo ora ogni Partition nell'array PartitionsArray
 		for _, partition := range topic.PartitionsArray {
