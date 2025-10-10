@@ -372,7 +372,7 @@ func ReadClusterMetadata() error {
 		return err
 	}
 	defer f.Close()
-	batches := make([]ClusterMetadataRecordBatch, 0)
+	batches := make([]ClusterMetadataRecordBatch, 0, 6)
 	br := bufio.NewReader(f)
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(br)
@@ -388,7 +388,5 @@ func ReadClusterMetadata() error {
 		batches = append(batches, *batch)
 
 	}
-	fmt.Printf("Batch len: %d", len(batches))
-
 	return nil
 }
