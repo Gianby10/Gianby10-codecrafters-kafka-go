@@ -281,16 +281,6 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 
 	responseBody := &DescribeTopicsPartitionsResponseV0{}
 	responseBody.NextCursor = 0xff // -1
-	// topicName := *body.Topics[0].TopicName
-	// var partitions []Partition
-	// if uuid, ok := ClusterMetadataCache.TopicInfo[topicName]; ok {
-	// 	topicUUID = uuid
-	// 	partitions = ClusterMetadataCache.PartitionInfo[topicUUID]
-	// } else {
-	// 	log.Printf("Topic %s not found in cluster metadata", topicName)
-	// 	errorCode = 3 // UNKNOWN_TOPIC_OR_PARTITION
-	// }
-	fmt.Printf("Trying to create a describetopicsresponse")
 	var responseTopics []DescribeTopicsPartitionsResponseTopic
 	for _, topic := range body.Topics {
 		if uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]; ok {
@@ -317,6 +307,9 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 		Header: &ResponseHeaderV1{
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
 		},
-		Body: responseBody,
+		Body: &DescribeTopicsPartitionsResponseV0{
+			ThrottleTimeMs: 0,
+			NextCursor:     0xff,
+		},
 	}
 }
