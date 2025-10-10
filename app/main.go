@@ -173,10 +173,11 @@ func main() {
 var ClusterTopics map[string][16]byte
 
 func init() {
-	ClusterTopics, err := LoadClusterMetadata("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
+	var err error
+	ClusterTopics, err = LoadClusterMetadata("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
 	if err != nil {
 		log.Printf("Cannot load cluster metadata: %v", err)
 		return
 	}
-	log.Printf("Loaded %d topics from cluster metadata", len(ClusterTopics))
+	log.Printf("Loaded %d topic(s) from cluster metadata", len(ClusterTopics))
 }
