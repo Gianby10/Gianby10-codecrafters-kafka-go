@@ -11,11 +11,11 @@ type DescribeTopicsPartitionsRequestV0 struct {
 	Topics                 []DescribeTopicsPartitionsRequestTopic
 	ResponsePartitionLimit int32
 	Cursor                 byte
-	TAG_BUFFER             []byte
+	TAG_BUFFER             byte // TODO: byte -> []byte
 }
 type DescribeTopicsPartitionsRequestTopic struct {
 	TopicName  *string
-	TAG_BUFFER []byte
+	TAG_BUFFER byte // TODO: byte -> []byte
 }
 
 func (api *DescribeTopicsPartitionsRequestV0) Serialize(w io.Writer) error {
