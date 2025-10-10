@@ -407,9 +407,9 @@ func LoadClusterMetadata(path string) (map[string][16]byte, error) {
 		batches = append(batches, *batch)
 		for _, record := range batch.Records {
 			if topicRecord, ok := record.Value.(*TopicRecordValue); ok {
-				log.Printf("Topic Name: %s, TopicUUID: %x", *record.Value.(*TopicRecordValue).TopicName, *&record.Value.(*TopicRecordValue).TopicId)
 				if topicRecord.TopicName != nil {
 					topics[*topicRecord.TopicName] = topicRecord.TopicId
+					log.Printf("Inserted topic: %s; UUID: %x", *record.Value.(*TopicRecordValue).TopicName, record.Value.(*TopicRecordValue).TopicId)
 				}
 			}
 		}
