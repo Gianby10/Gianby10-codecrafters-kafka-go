@@ -302,9 +302,6 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	if err := binary.Read(r, binary.BigEndian, &batch.RecordsLength); err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("[DEBUG] RecordsLen=%d\n", batch.RecordsLength)
-
 	// Leggo ora i record (che non sono un COMPACT_ARRAY)
 	records := make([]ClusterMetadataRecord, 0)
 	for i := 0; i < int(batch.RecordsLength); i++ {
@@ -394,7 +391,6 @@ func LoadClusterMetadata(path string) ([]ClusterMetadataRecordBatch, error) {
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(br)
 		if errors.Is(err, io.EOF) {
-			fmt.Println("Hit an EOF")
 			break
 		}
 
