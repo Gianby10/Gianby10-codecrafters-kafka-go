@@ -43,13 +43,13 @@ type ClusterMetadataRecord struct {
 type FeatureLevelRecordValue struct {
 	Name         *string // COMPACT_STRING
 	FeatureLevel int16
-	TAG_BUFFER   []byte // boh al momento metto solo un byte 0
+	TAG_BUFFER   byte // TODO: byte -> []byte
 }
 
 type TopicRecordValue struct {
 	TopicName  *string
 	TopicId    [16]byte
-	TAG_BUFFER []byte
+	TAG_BUFFER byte // TODO: byte -> []byte
 }
 
 type PartitionRecordValue struct {
@@ -63,7 +63,7 @@ type PartitionRecordValue struct {
 	LeaderEpoch     int32
 	PartitionEpoch  int32
 	Directories     [][16]byte // COMPACT_ARRAY di UUIDs
-	TAG_BUFFER      []byte
+	TAG_BUFFER      byte       // TODO: byte -> []byte
 }
 
 func ReadFeatureLevelValue(r io.Reader) (*FeatureLevelRecordValue, error) {
@@ -79,6 +79,11 @@ func ReadFeatureLevelValue(r io.Reader) (*FeatureLevelRecordValue, error) {
 
 	// Leggo FeatureLevel (int16)
 	if err := binary.Read(r, binary.BigEndian, &featureLevelRecord.FeatureLevel); err != nil {
+		return nil, err
+	}
+
+	// TAGGED_FIELDS
+	if err := binary.Read(r, binary.BigEndian, &featureLevelRecord.TAG_BUFFER); err != nil {
 		return nil, err
 	}
 
@@ -104,6 +109,10 @@ func ReadTopicRecordValue(r io.Reader) (*TopicRecordValue, error) {
 
 	topicRecord.TopicId = topicId
 
+	// TAGGED_FIELDS
+	if err := binary.Read(r, binary.BigEndian, &topicRecord.TAG_BUFFER); err != nil {
+		return nil, err
+	}
 	return &topicRecord, nil
 }
 
@@ -181,7 +190,10 @@ func ReadPartitionRecordValue(r io.Reader) (*PartitionRecordValue, error) {
 
 	partitionRecordValue.Directories = dirArray
 
-	// TAG_FIELDS
+	// TAGGED_FIELDS
+	if err := binary.Read(r, binary.BigEndian, &partitionRecordValue.TAG_BUFFER); err != nil {
+		return nil, err
+	}
 
 	return &partitionRecordValue, nil
 }
@@ -294,7 +306,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	fmt.Printf("[DEBUG] RecordsLen=%d\n", batch.RecordsLength)
 
 	// Leggo ora i record (che non sono un COMPACT_ARRAY)
-	records := make([]ClusterMetadataRecord, 0, batch.RecordsLength)
+	records := make([]ClusterMetadataRecord, 0)
 	for i := 0; i < int(batch.RecordsLength); i++ {
 		record := ClusterMetadataRecord{}
 
