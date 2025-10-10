@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -279,33 +278,45 @@ func (api *DescribeTopicsPartitionsResponseV0) Deserialize(r io.Reader) error {
 }
 
 func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *DescribeTopicsPartitionsRequestV0) *KafkaMessage {
-	var (
-		topicUUID [16]byte
-		errorCode int16 = 0
-	)
 
-	topicName := *body.Topics[0].TopicName
-	var partitions []Partition
-	if uuid, ok := ClusterMetadataCache.TopicInfo[topicName]; ok {
-		topicUUID = uuid
-		partitions = ClusterMetadataCache.PartitionInfo[topicUUID]
-	} else {
-		log.Printf("Topic %s not found in cluster metadata", topicName)
-		errorCode = 3 // UNKNOWN_TOPIC_OR_PARTITION
+	responseBody := &DescribeTopicsPartitionsResponseV0{}
+	responseBody.NextCursor = 0xff // -1
+	// topicName := *body.Topics[0].TopicName
+	// var partitions []Partition
+	// if uuid, ok := ClusterMetadataCache.TopicInfo[topicName]; ok {
+	// 	topicUUID = uuid
+	// 	partitions = ClusterMetadataCache.PartitionInfo[topicUUID]
+	// } else {
+	// 	log.Printf("Topic %s not found in cluster metadata", topicName)
+	// 	errorCode = 3 // UNKNOWN_TOPIC_OR_PARTITION
+	// }
+
+	var responseTopics []DescribeTopicsPartitionsResponseTopic
+	for _, topic := range body.Topics {
+		if uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]; ok {
+			partitions := ClusterMetadataCache.PartitionInfo[uuid]
+			responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
+				ErrorCode:                 0,
+				TopicName:                 topic.TopicName,
+				TopicId:                   uuid,
+				PartitionsArray:           partitions,
+				TopicAuthorizedOperations: 3576,
+			})
+		} else {
+			responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
+				ErrorCode:                 3, // UNKNOWN_TOPIC_OR_PARTITION
+				TopicName:                 topic.TopicName,
+				TopicAuthorizedOperations: 3576,
+			})
+		}
 	}
+
+	responseBody.Topics = responseTopics
+
 	return &KafkaMessage{
 		Header: &ResponseHeaderV1{
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
 		},
-		Body: &DescribeTopicsPartitionsResponseV0{
-			Topics: []DescribeTopicsPartitionsResponseTopic{{
-				ErrorCode:                 errorCode,
-				TopicName:                 body.Topics[0].TopicName,
-				TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
-				TopicId:                   topicUUID,
-				PartitionsArray:           partitions,
-			}},
-			NextCursor: 0xff, // -1
-		},
+		Body: responseBody,
 	}
 }

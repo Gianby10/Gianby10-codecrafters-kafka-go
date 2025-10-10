@@ -403,18 +403,10 @@ func LoadClusterMetadata(path string) ([]ClusterMetadataRecordBatch, error) {
 		}
 
 		batches = append(batches, *batch)
-		// for _, record := range batch.Records {
-		// 	if topicRecord, ok := record.Value.(*TopicRecordValue); ok {
-		// 		if topicRecord.TopicName != nil {
-		// 			topics[*topicRecord.TopicName] = topicRecord.TopicId
-		// 		}
-		// 	}
-		// }
+
 	}
 	return batches, nil
 }
-
-// var ClusterMetadataCache []ClusterMetadataRecordBatch
 
 type ClusterMetadata struct {
 	TopicInfo     map[string][16]byte
