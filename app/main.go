@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 )
 
 func handleConnection(conn net.Conn) {
@@ -26,8 +25,6 @@ func handleConnection(conn net.Conn) {
 
 		var responseMsg *KafkaMessage
 		requestHeader := kafkaReqMsg.Header.(*RequestHeaderV2)
-
-		time.Sleep(time.Second * 3)
 
 		var apiKey int16 = kafkaReqMsg.Header.(*RequestHeaderV2).ApiKey
 		switch apiKey {
