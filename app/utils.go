@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 )
 
 func ReadCompactString(r io.Reader) (*string, error) {
@@ -168,6 +169,9 @@ func ReadGenericCompactArray[T any](r io.Reader) ([]T, error) {
 
 	array := make([]T, arrayLen)
 	for i := range array {
+		if reflect.TypeOf(array[i]).Kind() == reflect.Slice {
+			ReadGenericCompactArray[reflect.TypeOf(array[i])](array[i])
+		}
 		if err := binary.Read(r, binary.BigEndian, &array[i]); err != nil {
 			return nil, err
 		}

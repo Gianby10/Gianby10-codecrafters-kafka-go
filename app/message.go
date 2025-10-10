@@ -78,6 +78,9 @@ func ReadKafkaRequestMessage(r io.Reader) (*KafkaMessage, error) {
 
 	var body Body
 	switch header.ApiKey {
+	case 1:
+		// Fetch
+
 	case 18: // ApiVersion
 		body = &ApiVersionsRequestV4{}
 	case 75: // DescribeTopicsPartitions
