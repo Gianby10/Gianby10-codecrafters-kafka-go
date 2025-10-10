@@ -290,7 +290,7 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 	// 	log.Printf("Topic %s not found in cluster metadata", topicName)
 	// 	errorCode = 3 // UNKNOWN_TOPIC_OR_PARTITION
 	// }
-
+	fmt.Printf("Trying to create a describetopicsresponse")
 	var responseTopics []DescribeTopicsPartitionsResponseTopic
 	for _, topic := range body.Topics {
 		if uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]; ok {
