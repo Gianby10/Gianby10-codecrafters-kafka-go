@@ -128,7 +128,7 @@ func NewApiVersionsResponse(requestHeader *RequestHeaderV2) *KafkaMessage {
 		}
 		log.Printf("Unsupported ApiVersion: %d", requestHeader.ApiVersion)
 	} else {
-		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}}, ThrottleTimeMs: 0}
+		apiVersionsBody = &ApiVersionsResponseV4{ErrorCode: 0, ApiKeys: []ApiVersion{{ApiKey: 18, MinVersion: 0, MaxVersion: 4}, {ApiKey: 75, MinVersion: 0, MaxVersion: 0}, {ApiKey: 1, MinVersion: 0, MaxVersion: 16}}, ThrottleTimeMs: 0}
 	}
 
 	return &KafkaMessage{
