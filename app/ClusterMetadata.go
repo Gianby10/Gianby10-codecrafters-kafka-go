@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 )
 
@@ -366,27 +368,48 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 	return &batch, nil
 }
 
-func ReadClusterMetadata() error {
-	f, err := os.Open("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
+func LoadClusterMetadata(path string) (map[string][16]byte, error) {
+	// "/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log"
+	f, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
+	topics := make(map[string][16]byte)
 	batches := make([]ClusterMetadataRecordBatch, 0, 6)
 	br := bufio.NewReader(f)
 	for {
 		batch, err := ReadClusterMetadataRecordBatch(br)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			fmt.Println("Hit an EOF")
-
 			break
 		}
+
 		if err != nil {
 			fmt.Printf("ERROR: %s", err)
+			return nil, err
 		}
 
 		batches = append(batches, *batch)
+		for _, record := range batch.Records {
+			if topicRecord, ok := record.Value.(*TopicRecordValue); ok {
+				if topicRecord.TopicName != nil {
+					topics[*topicRecord.TopicName] = topicRecord.TopicId
+				}
+			}
+		}
 
 	}
-	return nil
+	return topics, nil
+}
+
+var ClusterTopics map[string][16]byte
+
+func init() {
+	ClusterTopics, err := LoadClusterMetadata("/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log")
+	if err != nil {
+		log.Printf("Cannot load cluster metadata: %v", err)
+		return
+	}
+	log.Printf("Loaded %d topics from cluster metadata", len(ClusterTopics))
 }

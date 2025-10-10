@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -278,16 +279,27 @@ func (api *DescribeTopicsPartitionsResponseV0) Deserialize(r io.Reader) error {
 }
 
 func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *DescribeTopicsPartitionsRequestV0) *KafkaMessage {
-
+	var (
+		topicUUID [16]byte
+		errorCode int16 = 0
+	)
+	topicName := *body.Topics[0].TopicName
+	if uuid, ok := ClusterTopics[topicName]; ok {
+		topicUUID = uuid
+	} else {
+		log.Printf("Topic %s not found in cluster metadata", topicName)
+		errorCode = 3 // UNKNOWN_TOPIC_OR_PARTITION
+	}
 	return &KafkaMessage{
 		Header: &ResponseHeaderV1{
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
 		},
 		Body: &DescribeTopicsPartitionsResponseV0{
 			Topics: []DescribeTopicsPartitionsResponseTopic{{
-				ErrorCode:                 3,
+				ErrorCode:                 errorCode,
 				TopicName:                 body.Topics[0].TopicName,
 				TopicAuthorizedOperations: 3576, // Bitmap da sistemare TODO
+				TopicId:                   topicUUID,
 			}},
 			NextCursor: 0xff, // -1
 		},

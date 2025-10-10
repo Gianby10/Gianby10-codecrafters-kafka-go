@@ -133,10 +133,6 @@ func handleConnection(conn net.Conn) {
 		var responseMsg *KafkaMessage
 		requestHeader := kafkaReqMsg.Header.(*RequestHeaderV2)
 
-		if err := ReadClusterMetadata(); err != nil {
-			log.Print(err)
-		}
-
 		time.Sleep(time.Second * 3)
 
 		var apiKey int16 = kafkaReqMsg.Header.(*RequestHeaderV2).ApiKey
