@@ -111,7 +111,6 @@ func WriteKafkaResponseMessage(w io.Writer, msg *KafkaMessage) error {
 		return fmt.Errorf("error writing kafka response message: %s", err.Error())
 	}
 
-	log.Printf("Sent response (size=%d) CorrelationId=%d", len(responseBytes), msg.Header.(*ResponseHeaderV0).CorrelationId)
 	return nil
 }
 
