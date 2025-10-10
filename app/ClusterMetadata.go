@@ -384,6 +384,7 @@ func ReadClusterMetadataRecordBatch(r io.Reader) (*ClusterMetadataRecordBatch, e
 
 func LoadClusterMetadata(path string) ([]ClusterMetadataRecordBatch, error) {
 	f, err := os.Open(path)
+
 	if err != nil {
 		return nil, err
 	}
