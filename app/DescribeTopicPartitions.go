@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
+	"slices"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -311,7 +313,19 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 	}
 
 	responseBody.Topics = responseTopics
-
+	// I topics sono ordinati in ordine alfabetico
+	slices.SortFunc(responseBody.Topics, func(a, b DescribeTopicsPartitionsResponseTopic) int {
+		if a.TopicName == nil && b.TopicName == nil {
+			return 0
+		}
+		if a.TopicName == nil {
+			return -1
+		}
+		if b.TopicName == nil {
+			return 1
+		}
+		return cmp.Compare(*a.TopicName, *b.TopicName)
+	})
 	return &KafkaMessage{
 		Header: &ResponseHeaderV1{
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
