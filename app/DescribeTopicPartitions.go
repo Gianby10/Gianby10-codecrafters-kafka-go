@@ -308,8 +308,12 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
 		},
 		Body: &DescribeTopicsPartitionsResponseV0{
-			ThrottleTimeMs: 0,
-			NextCursor:     0xff,
+			NextCursor: 0xff,
+			Topics: []DescribeTopicsPartitionsResponseTopic{{
+				ErrorCode:                 3,
+				TopicName:                 StringToPtr("mario"),
+				TopicAuthorizedOperations: 3576,
+			}},
 		},
 	}
 }
