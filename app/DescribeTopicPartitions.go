@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -284,34 +283,34 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 	responseBody.NextCursor = 0xff // -1
 	var responseTopics []DescribeTopicsPartitionsResponseTopic
 	for _, topic := range body.Topics {
-		fmt.Println("Inside req body topics loop")
-		if topic.TopicName == nil {
-			log.Println("Request contains nil topic name")
-			continue
-		}
+		fmt.Printf("Inside req body topics loop: %+v", topic)
+		// if topic.TopicName == nil {
+		// 	log.Println("Request contains nil topic name")
+		// 	continue
+		// }
 
-		uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]
-		if !ok {
-			log.Printf("Unknown topic: %s", *topic.TopicName)
-			responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
-				ErrorCode:                 3, // UNKNOWN_TOPIC_OR_PARTITION
-				TopicName:                 topic.TopicName,
-				TopicAuthorizedOperations: 3576,
-			})
-			continue
-		}
+		// uuid, ok := ClusterMetadataCache.TopicInfo[*topic.TopicName]
+		// if !ok {
+		// 	log.Printf("Unknown topic: %s", *topic.TopicName)
+		// 	responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
+		// 		ErrorCode:                 3, // UNKNOWN_TOPIC_OR_PARTITION
+		// 		TopicName:                 topic.TopicName,
+		// 		TopicAuthorizedOperations: 3576,
+		// 	})
+		// 	continue
+		// }
 
-		partitions := ClusterMetadataCache.PartitionInfo[uuid]
-		if partitions == nil {
-			partitions = []Partition{}
-		}
-		responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
-			ErrorCode:                 0,
-			TopicName:                 topic.TopicName,
-			TopicId:                   uuid,
-			PartitionsArray:           partitions,
-			TopicAuthorizedOperations: 3576,
-		})
+		// partitions := ClusterMetadataCache.PartitionInfo[uuid]
+		// if partitions == nil {
+		// 	partitions = []Partition{}
+		// }
+		// responseTopics = append(responseTopics, DescribeTopicsPartitionsResponseTopic{
+		// 	ErrorCode:                 0,
+		// 	TopicName:                 topic.TopicName,
+		// 	TopicId:                   uuid,
+		// 	PartitionsArray:           partitions,
+		// 	TopicAuthorizedOperations: 3576,
+		// })
 	}
 
 	responseBody.Topics = responseTopics
