@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 )
 
 type DescribeTopicsPartitionsRequestV0 struct {
@@ -302,7 +303,7 @@ func NewDescribeTopicsPartitionsResponse(requestHeader *RequestHeaderV2, body *D
 	}
 
 	responseBody.Topics = responseTopics
-
+	log.Println("Creating new Kafka Message Describe Topics Partitions")
 	return &KafkaMessage{
 		Header: &ResponseHeaderV1{
 			CorrelationId: getCorrelationIdFromHeader(requestHeader),
